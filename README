@@ -1,0 +1,19 @@
+       frankl's stereo utilities
+
+This is a collection of programs and scripts to be used for stereo
+playback via a computer.
+
+Overview:
+
+ - volrace
+
+ - netplay
+
+ - netbuf
+
+ - netbufnet
+
+ - listenloop
+
+ - playnet
+
