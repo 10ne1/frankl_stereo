@@ -17,7 +17,6 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
-#include <getopt.h>
 #include <alsa/asoundlib.h>
 
 
@@ -291,7 +290,10 @@ int main(int argc, char *argv[])
     if (olen <= 0)
         olen = 1;
     if (ilen < bytesperframe*(olen)) {
-        ilen = bytesperframe*(olen+2);
+        if (olen*loopspersec == rate)
+            ilen = bytesperframe * olen;
+        else
+            ilen = bytesperframe * (olen+1);
         if (verbose) 
             fprintf(stderr, "Setting input chunk size to %ld bytes.\n", ilen);
     }
