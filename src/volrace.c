@@ -198,9 +198,9 @@ int main(int argc, char *argv[])
   double att, vol, maxvol, ptime=0.0, natt, nvol, ntime, vdiff, adiff;
   double buf[2*LEN+2*MAXDELAY], inp[2*LEN], out[2*LEN];
   float inpfloat[2*LEN], outfloat[2*LEN];
-  int optind, blen, delay, ndelay, i, check, mlen, change, count,
+  int optc, optind, blen, delay, ndelay, i, check, mlen, change, count,
       fadinglength;
-  char *fnam, optc, floatin, floatout;
+  char *fnam, floatin, floatout;
 
   if (argc == 1) {
       usage();
