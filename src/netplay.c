@@ -33,6 +33,8 @@ void usage( ) {
 "  This program reads raw audio data (stereo) from the network and plays \n"
 "  it on a local (ALSA) sound device. \n"
 "\n"
+"  Alternatively, data can be read from stdin. \n"
+"\n"
 "  The Linux kernel needs the highres-timer functionality enabled (on most\n"
 "  systems this is the case).\n"
 "  \n"
@@ -61,6 +63,9 @@ void usage( ) {
 "\n"
 "  --port=portnumber, -p portnumber\n"
 "      the port number on the remote host from which we receive data.\n"
+"\n"
+"  --stdin, -S\n"
+"      read data from stdin (instead of --host and --port).\n"
 "\n"
 "  --device=alsaname, -d alsaname\n"
 "      the name of the sound device. A typical name is 'hw:0,0', maybe\n"
@@ -170,6 +175,7 @@ int main(int argc, char *argv[])
     static struct option longoptions[] = {
         {"host", required_argument, 0,  'r' },
         {"port", required_argument,       0,  'p' },
+        {"stdin", no_argument,       0,  'S' },
         {"buffer-size", required_argument,       0,  'b' },
         {"input-size",  required_argument, 0, 'i'},
         {"loops-per-second", required_argument, 0,  'n' },
@@ -203,10 +209,11 @@ int main(int argc, char *argv[])
     /* nr of frames that wnext can be larger than olen */
     extra = 24;
     pcm_name = NULL;
+    sfd = -1;
     extrabps = 0;
     nonblock = 0;
     verbose = 0;
-    while ((optc = getopt_long(argc, argv, "r:p:b:i:n:s:f:c:d:e:o:NvVh",  
+    while ((optc = getopt_long(argc, argv, "r:p:Sb:i:n:s:f:c:d:e:o:NvVh",  
             longoptions, &optind)) != -1) {
         switch (optc) {
         case 'r':
@@ -214,6 +221,9 @@ int main(int argc, char *argv[])
           break;
         case 'p':
           port = optarg;
+          break;
+        case 'S':
+          sfd = 0;
           break;
         case 'b':
           blen = atoi(optarg);
@@ -274,8 +284,8 @@ int main(int argc, char *argv[])
         }
     }
     /* check some arguments and set some parameters */
-    if (host == NULL || port == NULL) {
-       fprintf(stderr, "Must give host and port.\n");
+    if ((host == NULL || port == NULL) && sfd < 0) {
+       fprintf(stderr, "Must give host and port or --stdin.\n");
        exit(3);
     }
     /* compute nanoseconds per loop (wrt local clock) */
@@ -338,7 +348,8 @@ int main(int argc, char *argv[])
     }
 
     /* setup network connection */
-    sfd = fd_net(host, port);
+    if (host != NULL && port != NULL)
+        sfd = fd_net(host, port);
 
     /* setup sound device */
     snd_pcm_hw_params_malloc(&hwparams);
