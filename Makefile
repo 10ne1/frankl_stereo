@@ -8,7 +8,8 @@ CFLAGS=-O2 -Wall
 CFLAGSNO=-O0 -Wall
 
 # targets
-ALL: bin tmp bin/volrace bin/netplay bin/bufnet
+ALL: bin tmp bin/volrace bin/netplay bin/bufnet bin/highrestest \
+     bin/writeloop bin/catloop
 
 bin:
 	mkdir -p bin
@@ -36,6 +37,15 @@ bin/netplay_static: src/version.h tmp/net.o src/netplay.c
 
 bin/bufnet: src/version.h tmp/net.o src/bufnet.c
 	$(CC) $(CFLAGSNO) -D_FILE_OFFSET_BITS=64 -o bin/bufnet tmp/net.o src/bufnet.c -lrt
+
+bin/highrestest: src/highrestest.c
+	$(CC) $(CFLAGSNO) -o bin/highrestest src/highrestest.c -lrt
+
+bin/writeloop: src/writeloop.c
+	$(CC) $(CFLAGS) -o bin/writeloop src/writeloop.c
+
+bin/catloop: src/catloop.c
+	$(CC) $(CFLAGS) -o bin/catloop src/catloop.c
 
 clean: 
 	rm -rf src/version.h bin tmp
