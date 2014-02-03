@@ -14,20 +14,20 @@ int main() {
   struct timespec res, tim;
 
   ret = clock_getres(CLOCK_REALTIME, &res);
-  printf("realtime res: %ld s %ld ns (%d)\n", res.tv_sec, res.tv_nsec, ret); 
+  printf("realtime resolution: %ld s %ld ns (%d)\n", res.tv_sec, res.tv_nsec, ret); 
 
   ret = clock_gettime(CLOCK_REALTIME, &tim);
   printf("realtime: %ld s %ld ns (%d)\n", tim.tv_sec, tim.tv_nsec, ret); 
 
   ret = clock_getres(CLOCK_MONOTONIC, &res);
   highresok = (res.tv_sec == 0 && res.tv_nsec == 1);
-  printf("monotonic res: %ld s %ld ns (%d)\n", res.tv_sec, res.tv_nsec, ret); 
+  printf("monotonic resolution: %ld s %ld ns (%d)\n", res.tv_sec, res.tv_nsec, ret); 
 
   ret = clock_gettime(CLOCK_MONOTONIC, &tim);
   printf("monotonic: %ld s %ld ns (%d)\n", tim.tv_sec, tim.tv_nsec, ret); 
 
   ret = clock_getres(CLOCK_PROCESS_CPUTIME_ID, &res);
-  printf("process res: %ld s %ld ns (%d)\n", res.tv_sec, res.tv_nsec, ret); 
+  printf("process resolution: %ld s %ld ns (%d)\n", res.tv_sec, res.tv_nsec, ret); 
 
   ret = clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tim);
   printf("process: %ld s %ld ns (%d)\n", tim.tv_sec, tim.tv_nsec, ret); 
