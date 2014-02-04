@@ -275,8 +275,12 @@ int main(int argc, char *argv[])
           break;
         case 'V':
           fprintf(stderr, 
-                  "netplay (version %s of frankl's stereo utilities)\n", 
+                  "netplay (version %s of frankl's stereo utilities", 
                   VERSION);
+#ifdef ALSANC
+          fprintf(stderr, ", with alsa-lib patch");
+#endif
+          fprintf(stderr, ")\n");
           exit(0);
         default:
           usage();
