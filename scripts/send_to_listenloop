@@ -31,4 +31,11 @@ sox $1 -t raw -e signed -b 32 - vol 0.6  rate -v -I 96000 | \
      chrt -r 99 bufnet --buffer-size=8096 --input-size=0  \
      --bytes-per-second=768000 --loops-per-second=2000 --port=6110 \
      --extra-bytes-per-second=0 
+# and here is a variant with 'volrace'
+#sox $1 -t raw -e signed -b 32 - vol 0.6  rate -v -I 96000 | \
+#     volrace --race-delay=28 --race-volume=0.22 | \
+#     chrt -r 99 bufnet --buffer-size=8096 --input-size=0  \
+#     --bytes-per-second=768000 --loops-per-second=2000 --port=6110 \
+#     --extra-bytes-per-second=0 
+
 
