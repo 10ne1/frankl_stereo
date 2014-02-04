@@ -1,19 +1,46 @@
        frankl's stereo utilities
+       =========================
 
 This is a collection of programs and scripts to be used for stereo
 playback via a computer.
 
+These programs are free software, see files 'License.txt' and 'COPYING'
+for details. Note in particular that using them is on your own risk.
+
+Run a program with option '--help' to read its documentation.
+
 Overview:
 
  - volrace
+      implements a simple form of the RACE algorithm and can be used
+      for volume control
 
  - netplay
+      reads an audio stream from the network (or stdin) and sends it 
+      to a sound device
 
- - netbuf
+ - bufnet
+      reads data from a file, stdin, or the network and writes them
+      to a network port
 
- - netbufnet
+ - writeloop/catloop
+      reads data from stdin and writes it cyclically to some files,
+      and vice versa   (to buffer data in a ramdisk)
 
- - listenloop
+ - listenloop/send_to_netplay
+      example script which demonstrate the use of netplay/bufnet
 
- - playnet
+The main idea of 'netplay' and 'bufnet' is that data are written in
+very regular intervals using the highres timer functionality
+of the Linux kernel.
+
+See the file INSTALL for installation instructions.
+
+Web page:
+    http://frank_l.bitbucket.org/stereoutils/
+
+Report problems and suggest improvements via the issue tracker:
+    https://bitbucket.org/frank_l/frankl_stereo/issues
+
+Happy listening!
 

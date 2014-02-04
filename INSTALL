@@ -1,0 +1,60 @@
+       frankl's stereo utilities - Installation
+
+
+You need a Linux system with a C-compiler and header files for libasound.
+(on Debian/Ubuntu and similar distributions:
+     sudo apt-get install gcc libasound2-dev
+)
+
+To compile the programs 'netplay', 'bufnet' and 'volrace' say:
+
+  make
+
+Then copy the files in the 'bin/' directory somewhere in your PATH.
+
+Another version of 'netplay' can be compiled using a patched
+ALSA library. See below how to compile the patched library. Once you
+have done this, say:
+
+  make bin/netplay_ALSANC ALSANC=/my/alsa/install/dir/
+
+or for a statically linked version:
+  
+  make bin/netplay_static ALSANC=/my/alsa/install/dir/
+
+For a good performance of 'netplay' and 'bufnet' you should use a Linux
+kernel with highres timers enabled. This is the case for most Linux
+distributions, you can check it by running the utility 'bin/highrestest'.
+
+
+
+------------------------------------------------------------------------
+   Compile a patched version of alsa-lib
+
+Idea:  provide function 'snd_pcm_writei_nc' which writes data to driver 
+       buffer without doing any checks before.  
+       Then use 'snd_pcm_writei_nc' instead of 'snd_pcm_writei'.
+
+- unpack alsa-lib (say alsa-lib-1.0.27.tar.bz2)
+- add after 'snd_pcm_writei' 
+    in include/pcm.h
+
+snd_pcm_sframes_t snd_pcm_writei_nc(snd_pcm_t *pcm, const void *buffer, snd_pcm_uframes_t size);
+
+    and in src/pcm/pcm.c
+
+snd_pcm_sframes_t snd_pcm_writei_nc(snd_pcm_t *pcm, const void *buffer, snd_pcm_uframes_t size)
+{
+       return _snd_pcm_writei(pcm, buffer, size);
+}
+
+- then do 
+          ./configure --prefix=/my/alsa/install/dir
+          make
+          make install
+
+- then link to this with 
+     gcc ....   -I /my/alsa/install/dir/include -L/my/alsa/install/dir/lib ..... -lasound ...
+
+
+
