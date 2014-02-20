@@ -19,6 +19,7 @@ EXTRABYTESPERSEC=0
 
 # how to call the 'netplay' program  
 #NETPLAY=netplay
+# change path to location of your patched ALSA lib
 export LD_LIBRARY_PATH=/root/alsa/lib/:
 NETPLAY=netplay_ALSANC # we use version with patched alsa lib
 

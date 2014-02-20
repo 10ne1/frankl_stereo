@@ -10,7 +10,8 @@
 ##  4 x 2 x 96000 = 768000 bytes per second) to the remote machine.
 ##  
 ##  (on my machines I found an underrun of 'netplay' after a few minutes
-##  and adjust it by using 'bufnet' with option '--extra-bytes-per-second=20')
+##  and adjusted this by using 'bufnet' with option 
+##  '--extra-bytes-per-second=20')
 ##  
 ##  (Actually, I'm using a more sophisticated script which also pipes the
 ##  audio stream through 'volrace' and 'brutefir' for localization and room

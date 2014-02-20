@@ -28,7 +28,7 @@ Overview:
       and vice versa   (to buffer data in a ramdisk)
 
  - listenloop/send_to_netplay
-      example script which demonstrate the use of netplay/bufnet
+      example scripts which demonstrate the use of netplay/bufnet
 
 The main idea of 'netplay' and 'bufnet' is that data are written in
 very regular intervals using the highres timer functionality
