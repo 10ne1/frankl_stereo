@@ -8,8 +8,8 @@ CFLAGS=-O2 -Wall
 CFLAGSNO=-O0 -Wall
 
 # targets
-ALL: bin tmp bin/volrace bin/netplay bin/bufnet bin/highrestest \
-     bin/writeloop bin/catloop
+ALL: bin tmp bin/volrace bin/bufnet bin/highrestest \
+     bin/writeloop bin/catloop bin/netplay 
 
 bin:
 	mkdir -p bin
