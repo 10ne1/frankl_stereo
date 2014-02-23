@@ -79,6 +79,9 @@ void usage( ) {
 "  --port-to-read=intval, -P intval\n"
 "      a port number, see --host-to-read.\n"
 "\n"
+"  --stdout, -o\n"
+"      write to stdout instead of a network port.\n"
+"\n"
 "  --input-size=intval, -i intval\n"
 "      the number of bytes to be read per loop (when needed). The default\n"
 "      is to use the smallest amount needed for the output.\n"
@@ -120,7 +123,7 @@ void usage( ) {
 int main(int argc, char *argv[])
 {
     struct sockaddr_in serv_addr;
-    int listenfd, connfd, ifd, s, moreinput, optval=1, verbose, rate,
+    int listenfd, connfd, ifd, s, moreinput, optval=1, verbose, sout, rate,
         extrabps, bytesperframe, optc;
     long blen, hlen, ilen, olen, outpersec, loopspersec, nsec, count, wnext,
          badreads, badreadbytes, badwrites, badwritebytes;
@@ -142,13 +145,14 @@ int main(int argc, char *argv[])
         {"file", required_argument, 0, 'F' },
         {"host-to-read", required_argument, 0, 'H' },
         {"port-to-read", required_argument, 0, 'P' },
+        {"stdout", no_argument, 0, 'o' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
         {"verbose", no_argument, 0, 'v' },
         {"version", no_argument, 0, 'V' },
         {"help", no_argument, 0, 'h' },
         {0,         0,                 0,  0 }
     };
-    
+
     if (argc == 1) {
        usage();
        exit(0);
@@ -168,7 +172,8 @@ int main(int argc, char *argv[])
     infile = NULL;
     extrabps = 0;
     verbose = 0;
-    while ((optc = getopt_long(argc, argv, "p:b:i:n:m:s:f:F:H:P:e:vVh",  
+    sout = 0;
+    while ((optc = getopt_long(argc, argv, "p:b:i:n:m:s:f:F:H:P:e:ovVh",
             longoptions, &optind)) != -1) {
         switch (optc) {
         case 'p':
@@ -219,12 +224,15 @@ int main(int argc, char *argv[])
         case 'e':
           extrabps = atof(optarg);
           break;
+        case 'o':
+          sout = 1;
+          break;
         case 'v':
           verbose = 1;
           break;
         case 'V':
-          fprintf(stderr, 
-                  "netplay (version %s of frankl's stereo utilities)\n", 
+          fprintf(stderr,
+                  "netplay (version %s of frankl's stereo utilities)\n",
                   VERSION);
           exit(0);
         default:
@@ -233,7 +241,7 @@ int main(int argc, char *argv[])
         }
     }
     /* check some arguments and set some parameters */
-    if (port == NULL) {
+    if (port == NULL && sout == 0) {
        fprintf(stderr, "Must give port for sending.\n");
        exit(4);
     }
@@ -299,39 +307,46 @@ int main(int argc, char *argv[])
     iptr = buf;
     optr = buf;
     if (! (wbuf = malloc(2*olen)) ) {
-        fprintf(stderr, "Cannot allocate buffer of length %ld.\n", 
+        fprintf(stderr, "Cannot allocate buffer of length %ld.\n",
                 blen+ilen+olen);
         exit(7);
     }
     if (! (wbuf2 = malloc(2*olen)) ) {
-        fprintf(stderr, "Cannot allocate another buffer of length %ld.\n", 
+        fprintf(stderr, "Cannot allocate another buffer of length %ld.\n",
                 blen+ilen+olen);
         exit(8);
     }
 
     /* outgoing socket */
-    listenfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (listenfd < 0) {
-        fprintf(stderr, "Cannot create outgoing socket.\n");
-        exit(9);
-    }
-    if (setsockopt(listenfd,SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(int)) == -1)
-    {
-        fprintf(stderr, "Cannot set REUSEADDR.\n");
-        exit(10);
-    }
-    memset(&serv_addr, '0', sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv_addr.sin_port = htons(atoi(port)); 
-    if (bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1) {
-        fprintf(stderr, "Cannot bind outgoing socket.\n");
-        exit(11);
-    }
-    listen(listenfd, 1);
-    if ((connfd = accept(listenfd, (struct sockaddr*)NULL, NULL)) == -1) {
-        fprintf(stderr, "Cannot accept outgoing connection.\n");
-        exit(12);
+    if (sout == 1)
+        /* use stdout instead of network port for output */
+        connfd = 1;
+    else {
+        listenfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (listenfd < 0) {
+            fprintf(stderr, "Cannot create outgoing socket.\n");
+            exit(9);
+        }
+        if (setsockopt(listenfd,
+                       SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(int)) == -1)
+        {
+            fprintf(stderr, "Cannot set REUSEADDR.\n");
+            exit(10);
+        }
+        memset(&serv_addr, '0', sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        serv_addr.sin_port = htons(atoi(port));
+        if (bind(listenfd, (struct sockaddr*)&serv_addr,
+                                              sizeof(serv_addr)) == -1) {
+            fprintf(stderr, "Cannot bind outgoing socket.\n");
+            exit(11);
+        }
+        listen(listenfd, 1);
+        if ((connfd = accept(listenfd, (struct sockaddr*)NULL, NULL)) == -1) {
+            fprintf(stderr, "Cannot accept outgoing connection.\n");
+            exit(12);
+        }
     }
 
     /* fill at least half buffer */
