@@ -1,8 +1,8 @@
 /*
 bufnet.c                Copyright frankl 2013-2014
 
-This file is part of frankl's stereo utilities. 
-See the file License.txt of the distribution and 
+This file is part of frankl's stereo utilities.
+See the file License.txt of the distribution and
 http://www.gnu.org/licenses/gpl.txt for license details.
 */
 
@@ -22,7 +22,7 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 #include <fcntl.h>
 
 /* help page */
-/* vim hint to remove resp. add quotes: 
+/* vim hint to remove resp. add quotes:
       s/^"\(.*\)\\n"$/\1/
       s/.*$/"\0\\n"/
 */
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
     blen = 65536;
     /* default input is stdin */
     ifd = 0;
-    ilen = 0; 
+    ilen = 0;
     loopspersec = 1000;
     outpersec = 0;
     rate = 0;
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
        ifd = fd_net(inhost, inport);
     }
     if (verbose) {
-       fprintf(stderr, "Writing %ld bytes per second to port %s.\n", 
+       fprintf(stderr, "Writing %ld bytes per second to port %s.\n",
                        outpersec, port);
        fprintf(stderr, "Input from ");
        if (ifd == 0)
@@ -281,7 +281,7 @@ int main(int argc, char *argv[])
             ilen = olen;
         else
             ilen = olen + 1;
-        if (verbose) { 
+        if (verbose) {
            fprintf(stderr, "Choosing %ld as length of input chunks.\n", ilen);
            fflush(stderr);
         }
@@ -289,16 +289,16 @@ int main(int argc, char *argv[])
     if (blen < 3*(ilen+olen))
         blen = 3*(ilen+olen);
     hlen = blen/2;
-    if (olen*loopspersec == outpersec) 
+    if (olen*loopspersec == outpersec)
         looperr = 0.0;
     else
         looperr = (1.0*outpersec)/loopspersec - 1.0*olen;
     moreinput = 1;
     icount = 0;
     ocount = 0;
-    
+
     if (! (buf = malloc(blen+ilen+2*olen)) ) {
-        fprintf(stderr, "Cannot allocate buffer of length %ld.\n", 
+        fprintf(stderr, "Cannot allocate buffer of length %ld.\n",
                 blen+ilen+olen);
         exit(6);
     }
@@ -367,16 +367,16 @@ int main(int argc, char *argv[])
         wnext = iptr-optr;
     else
         wnext = olen;
-        
+
     if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
         fprintf(stderr, "Cannot get monotonic clock.\n");
         exit(14);
     }
     if (verbose) {
-        fprintf(stderr, "Starting at %ld sec %ld nsec \n", 
+        fprintf(stderr, "Starting at %ld sec %ld nsec \n",
                                            mtime.tv_sec, mtime.tv_nsec);
-        fprintf(stderr, 
-                "   insize %ld, outsize %ld, buflen %ld, interval %ld nsec\n", 
+        fprintf(stderr,
+                "   insize %ld, outsize %ld, buflen %ld, interval %ld nsec\n",
                                      ilen, olen, blen+ilen+2*olen, nsec);
     }
 
@@ -394,7 +394,7 @@ int main(int argc, char *argv[])
           mtime.tv_nsec -= 1000000000;
           mtime.tv_sec++;
         }
-        while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL) 
+        while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL)
                != 0) ;
         /* write a chunk, this comes first after waking from sleep */
         s = write(connfd, wbuf, wnext);
@@ -414,7 +414,7 @@ int main(int argc, char *argv[])
            wnext++;
         }
         if (wnext >= 2*olen) {
-           fprintf(stderr, "Underrun by %ld (%ld sec %ld nsec).\n", 
+           fprintf(stderr, "Underrun by %ld (%ld sec %ld nsec).\n",
                      wnext - 2*olen, mtime.tv_sec, mtime.tv_nsec);
            wnext = 2*olen-1;
         }
@@ -461,9 +461,9 @@ int main(int argc, char *argv[])
     close(listenfd);
     close(ifd);
     if (verbose)
-        fprintf(stderr, "Loops: %ld, total bytes: %lld in %lld out.\n"  
+        fprintf(stderr, "Loops: %ld, total bytes: %lld in %lld out.\n"
                         "Bad reads/bytes %ld/%ld and writes/bytes %ld/%ld.\n",
-                        count, icount, ocount, badreads, badreadbytes, 
+                        count, icount, ocount, badreads, badreadbytes,
                         badwrites, badwritebytes);
     return 0;
 }
