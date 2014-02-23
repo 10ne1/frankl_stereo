@@ -8,7 +8,7 @@ CFLAGS=-O2 -Wall
 CFLAGSNO=-O0 -Wall
 
 # targets
-ALL: bin tmp bin/volrace bin/bufnet bin/highrestest \
+ALL: bin tmp bin/volrace bin/bufhrt bin/highrestest \
      bin/writeloop bin/catloop bin/netplay 
 
 bin:
@@ -35,8 +35,8 @@ bin/netplay_ALSANC: src/version.h tmp/net.o src/netplay.c
 bin/netplay_static: src/version.h tmp/net.o src/netplay.c
 	$(CC) $(CFLAGSNO) -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/netplay_static src/netplay.c tmp/net.o -lasound -lrt -lpthread -lm -ldl -static
 
-bin/bufnet: src/version.h tmp/net.o src/bufnet.c
-	$(CC) $(CFLAGSNO) -D_FILE_OFFSET_BITS=64 -o bin/bufnet tmp/net.o src/bufnet.c -lrt
+bin/bufhrt: src/version.h tmp/net.o src/bufhrt.c
+	$(CC) $(CFLAGSNO) -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -lrt
 
 bin/highrestest: src/highrestest.c
 	$(CC) $(CFLAGSNO) -o bin/highrestest src/highrestest.c -lrt

@@ -6,11 +6,11 @@
 ##       send_to_listenloop mymusic.flac
 ##
 ##  In this example we use 'sox' to decode the file and resample to
-##  96000/32 format and send the data with 'bufnet' (i.e.,
+##  96000/32 format and send the data with 'bufhrt' (i.e.,
 ##  4 x 2 x 96000 = 768000 bytes per second) to the remote machine.
 ##  
 ##  (on my machines I found an underrun of 'netplay' after a few minutes
-##  and adjusted this by using 'bufnet' with option 
+##  and adjusted this by using 'bufhrt' with option 
 ##  '--extra-bytes-per-second=20')
 ##  
 ##  (Actually, I'm using a more sophisticated script which also pipes the
@@ -29,13 +29,13 @@ echo 'MAGIC=weasdDSwfw8773naSEgeoQ;FROMHOST='$THISHOST';FROMPORT='$PORT';SAMPLER
 
 
 sox $1 -t raw -e signed -b 32 - vol 0.6  rate -v -I 96000 | \
-     chrt -r 99 bufnet --buffer-size=8096 --input-size=0  \
+     chrt -r 99 bufhrt --buffer-size=8096 --input-size=0  \
      --bytes-per-second=768000 --loops-per-second=2000 --port=6110 \
      --extra-bytes-per-second=0 
 # and here is a variant with 'volrace'
 #sox $1 -t raw -e signed -b 32 - vol 0.6  rate -v -I 96000 | \
 #     volrace --race-delay=28 --race-volume=0.22 | \
-#     chrt -r 99 bufnet --buffer-size=8096 --input-size=0  \
+#     chrt -r 99 bufhrt --buffer-size=8096 --input-size=0  \
 #     --bytes-per-second=768000 --loops-per-second=2000 --port=6110 \
 #     --extra-bytes-per-second=0 
 

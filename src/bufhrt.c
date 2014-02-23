@@ -1,5 +1,5 @@
 /*
-bufnet.c                Copyright frankl 2013-2014
+bufhrt.c                Copyright frankl 2013-2014
 
 This file is part of frankl's stereo utilities.
 See the file License.txt of the distribution and
@@ -29,12 +29,12 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 void usage( ) {
   fprintf(stderr,
 "\n"
-"  bufnet --port=<pnr> [more options] \n"
+"  bufhrt [options] \n"
 "\n"
 "  This program reads data from stdin, a file or a network connection and\n"
-"  writes it to the network in precisely timed chunks. To be accurate\n"
-"  the Linux kernel should have the highres-timer enabled (which is\n"
-"  the case in most Linux distributions).\n"
+"  writes it to stdout, a file or the network in precisely timed chunks.\n"
+"  To be accurate, the Linux kernel should have the highres-timer enabled\n"
+"  (which is the case in most Linux distributions).\n"
 "\n"
 "  The default input is stdin. Otherwise specify a file or a network \n"
 "  connection. Furthermore, the number of bytes to be written per second\n"
@@ -42,17 +42,23 @@ void usage( ) {
 "  reads a chunk of data (if needed), sleeps until a specific instant of\n"
 "  time and writes a chunk of data after waking up. \n"
 "\n"
+"  The default output is stdout, otherwise specify a network port or file\n"
+"  name.\n"
+"\n"
 "  USAGE HINTS\n"
 "\n"
 "  For critical applications (e.g., sending audio data to our player program\n"
-"  'netplay') 'bufnet' may be started with a high priority for the real\n"
-"  time scheduler:  chrt -f 99 bufnet .....\n"
+"  'netplay') 'bufhrt' may be started with a high priority for the real\n"
+"  time scheduler:  chrt -f 99 bufhrt .....\n"
 "  See the documentation of 'netplay' for more details.\n"
 "\n"
 "  OPTIONS\n"
 "\n"
 "  --port=intval, -p intval\n"
-"      the port number to which data are written.\n"
+"      the network port number to which data are written instead of stdout.\n"
+"\n"
+"  --outfile=fname, -o fname\n"
+"      write to this file instead of stdout.\n"
 "\n"
 "  --bytes-per-second=intval, -m intval\n"
 "      the number of bytes to be written to the output per second.\n"
@@ -79,9 +85,6 @@ void usage( ) {
 "  --port-to-read=intval, -P intval\n"
 "      a port number, see --host-to-read.\n"
 "\n"
-"  --stdout, -o\n"
-"      write to stdout instead of a network port.\n"
-"\n"
 "  --input-size=intval, -i intval\n"
 "      the number of bytes to be read per loop (when needed). The default\n"
 "      is to use the smallest amount needed for the output.\n"
@@ -107,13 +110,13 @@ void usage( ) {
 "  Sending audio data (192/32 format) from a filter program to a remote \n"
 "  machine, using a small buffer and smallest possible input chunks:\n"
 "\n"
-"  ...(filter)... | chrt -r 99 bufnet --port 5888 \\\n"
+"  ...(filter)... | chrt -r 99 bufhrt --port 5888 \\\n"
 "                    --bytes-per-second=1536000 --loops-per-second=2000 \\\n"
 "                    --buffer-size=8096 \n"
 "\n"
 "  A network buffer, reading from and writing to network:\n"
 "\n"
-"  chrt -r 99 bufnet --host-to-read=myserver --port-to-read=5888 \\\n"
+"  chrt -r 99 bufhrt --host-to-read=myserver --port-to-read=5888 \\\n"
 "               --buffer-size=20000 --bytes-per-second=1536000 \\\n"
 "               --loops-per-second=2000 --port=5999\n"
 "\n"
@@ -123,19 +126,20 @@ void usage( ) {
 int main(int argc, char *argv[])
 {
     struct sockaddr_in serv_addr;
-    int listenfd, connfd, ifd, s, moreinput, optval=1, verbose, sout, rate,
+    int listenfd, connfd, ifd, s, moreinput, optval=1, verbose, rate,
         extrabps, bytesperframe, optc;
     long blen, hlen, ilen, olen, outpersec, loopspersec, nsec, count, wnext,
          badreads, badreadbytes, badwrites, badwritebytes;
     long long icount, ocount;
     void *buf, *wbuf, *wbuf2, *iptr, *optr, *max;
-    char *port, *inhost, *inport, *infile;
+    char *port, *inhost, *inport, *outfile, *infile;
     struct timespec mtime;
     double looperr, extraerr, off;
 
     /* read command line options */
     static struct option longoptions[] = {
         {"port", required_argument,       0,  'p' },
+        {"outfile", required_argument, 0, 'o' },
         {"buffer-size", required_argument,       0,  'b' },
         {"input-size",  required_argument, 0, 'i'},
         {"loops-per-second", required_argument, 0,  'n' },
@@ -145,7 +149,6 @@ int main(int argc, char *argv[])
         {"file", required_argument, 0, 'F' },
         {"host-to-read", required_argument, 0, 'H' },
         {"port-to-read", required_argument, 0, 'P' },
-        {"stdout", no_argument, 0, 'o' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
         {"verbose", no_argument, 0, 'v' },
         {"version", no_argument, 0, 'V' },
@@ -159,9 +162,12 @@ int main(int argc, char *argv[])
     }
     /* defaults */
     port = NULL;
+    outfile = NULL;
     blen = 65536;
     /* default input is stdin */
     ifd = 0;
+    /* default output is stdout */
+    connfd = 1;
     ilen = 0;
     loopspersec = 1000;
     outpersec = 0;
@@ -172,12 +178,18 @@ int main(int argc, char *argv[])
     infile = NULL;
     extrabps = 0;
     verbose = 0;
-    sout = 0;
-    while ((optc = getopt_long(argc, argv, "p:b:i:n:m:s:f:F:H:P:e:ovVh",
+    while ((optc = getopt_long(argc, argv, "p:o:b:i:n:m:s:f:F:H:P:e:vVh",
             longoptions, &optind)) != -1) {
         switch (optc) {
         case 'p':
           port = optarg;
+          break;
+        case 'o':
+          outfile = optarg;
+          if ((connfd = open(outfile, O_WRONLY)) == -1) {
+              fprintf(stderr, "Cannot open output file %s.\n", outfile);
+              exit(3);
+          }
           break;
         case 'b':
           blen = atoi(optarg);
@@ -224,9 +236,6 @@ int main(int argc, char *argv[])
         case 'e':
           extrabps = atof(optarg);
           break;
-        case 'o':
-          sout = 1;
-          break;
         case 'v':
           verbose = 1;
           break;
@@ -241,10 +250,6 @@ int main(int argc, char *argv[])
         }
     }
     /* check some arguments and set some parameters */
-    if (port == NULL && sout == 0) {
-       fprintf(stderr, "Must give port for sending.\n");
-       exit(4);
-    }
     if (outpersec == 0) {
        if (rate != 0 && bytesperframe != 0) {
            outpersec = rate * bytesperframe;
@@ -258,8 +263,13 @@ int main(int argc, char *argv[])
        ifd = fd_net(inhost, inport);
     }
     if (verbose) {
-       fprintf(stderr, "Writing %ld bytes per second to port %s.\n",
-                       outpersec, port);
+       fprintf(stderr, "Writing %ld bytes per second to ", outpersec);
+       if (port != NULL)
+          fprintf(stderr, "port %s.\n", port);
+       else if (connfd == 1)
+          fprintf(stderr, "stdout.\n");
+       else 
+          fprintf(stderr, " file %s.\n", outfile);
        fprintf(stderr, "Input from ");
        if (ifd == 0)
           fprintf(stderr, "stdin");
@@ -318,10 +328,7 @@ int main(int argc, char *argv[])
     }
 
     /* outgoing socket */
-    if (sout == 1)
-        /* use stdout instead of network port for output */
-        connfd = 1;
-    else {
+    if (port != 0) {
         listenfd = socket(AF_INET, SOCK_STREAM, 0);
         if (listenfd < 0) {
             fprintf(stderr, "Cannot create outgoing socket.\n");

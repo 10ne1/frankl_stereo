@@ -19,18 +19,18 @@ Overview:
       reads an audio stream from the network (or stdin) and sends it 
       to a sound device
 
- - bufnet
-      reads data from a file, stdin, or the network and writes them
-      to a network port
+ - bufhrt
+      reads data from stdin, a file, or the network and writes them
+      to stdout, a network port or a file
 
  - writeloop/catloop
       reads data from stdin and writes it cyclically to some files,
       and vice versa   (to buffer data in a ramdisk)
 
  - listenloop/send_to_netplay
-      example scripts which demonstrate the use of netplay/bufnet
+      example scripts which demonstrate the use of netplay/bufhrt
 
-The main idea of 'netplay' and 'bufnet' is that data are written in
+The main idea of 'netplay' and 'bufhrt' is that data are written in
 very regular intervals using the highres timer functionality
 of the Linux kernel.
 

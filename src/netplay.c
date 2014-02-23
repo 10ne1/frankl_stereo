@@ -52,7 +52,7 @@ void usage( ) {
 "  priviledges for this, in that case use 'sudo chrt -f 99 netplay ....' \n"
 "  or give 'chrt' setuid permissions.)\n"
 "\n"
-"  It can be sensible to use the program 'bufnet' from this package to\n"
+"  It can be sensible to use the program 'bufhrt' from this package to\n"
 "  send the data on <hostname>.\n"
 "  \n"
 "  OPTIONS\n"
