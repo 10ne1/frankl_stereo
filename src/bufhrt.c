@@ -48,9 +48,9 @@ void usage( ) {
 "  USAGE HINTS\n"
 "\n"
 "  For critical applications (e.g., sending audio data to our player program\n"
-"  'netplay') 'bufhrt' may be started with a high priority for the real\n"
+"  'playhrt') 'bufhrt' may be started with a high priority for the real\n"
 "  time scheduler:  chrt -f 99 bufhrt .....\n"
-"  See the documentation of 'netplay' for more details.\n"
+"  See the documentation of 'playhrt' for more details.\n"
 "\n"
 "  OPTIONS\n"
 "\n"
@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
           break;
         case 'V':
           fprintf(stderr,
-                  "netplay (version %s of frankl's stereo utilities)\n",
+                  "bufhrt (version %s of frankl's stereo utilities)\n",
                   VERSION);
           exit(0);
         default:

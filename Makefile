@@ -9,7 +9,7 @@ CFLAGSNO=-O0 -Wall
 
 # targets
 ALL: bin tmp bin/volrace bin/bufhrt bin/highrestest \
-     bin/writeloop bin/catloop bin/netplay 
+     bin/writeloop bin/catloop bin/playhrt 
 
 bin:
 	mkdir -p bin
@@ -26,14 +26,14 @@ bin/volrace: src/version.h src/volrace.c
 tmp/net.o: src/net.h src/net.c
 	$(CC) $(CFLAGS) -c -o tmp/net.o src/net.c
 
-bin/netplay: src/version.h tmp/net.o src/netplay.c
-	$(CC) $(CFLAGSNO) -o bin/netplay src/netplay.c tmp/net.o -lasound -lrt
+bin/playhrt: src/version.h tmp/net.o src/playhrt.c
+	$(CC) $(CFLAGSNO) -o bin/playhrt src/playhrt.c tmp/net.o -lasound -lrt
 
-bin/netplay_ALSANC: src/version.h tmp/net.o src/netplay.c
-	$(CC) $(CFLAGSNO) -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/netplay_ALSANC src/netplay.c tmp/net.o -lasound -lrt 
+bin/playhrt_ALSANC: src/version.h tmp/net.o src/playhrt.c
+	$(CC) $(CFLAGSNO) -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt_ALSANC src/playhrt.c tmp/net.o -lasound -lrt 
 
-bin/netplay_static: src/version.h tmp/net.o src/netplay.c
-	$(CC) $(CFLAGSNO) -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/netplay_static src/netplay.c tmp/net.o -lasound -lrt -lpthread -lm -ldl -static
+bin/playhrt_static: src/version.h tmp/net.o src/playhrt.c
+	$(CC) $(CFLAGSNO) -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt_static src/playhrt.c tmp/net.o -lasound -lrt -lpthread -lm -ldl -static
 
 bin/bufhrt: src/version.h tmp/net.o src/bufhrt.c
 	$(CC) $(CFLAGSNO) -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -lrt

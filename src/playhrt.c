@@ -1,5 +1,5 @@
 /*
-netplay.c                Copyright frankl 2013-2014
+playhrt.c                Copyright frankl 2013-2014
 
 This file is part of frankl's stereo utilities. 
 See the file License.txt of the distribution and 
@@ -28,32 +28,35 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 void usage( ) {
   fprintf(stderr,
 "\n"
-"  netplay --host=<hostname> --port=<pnr> --device=<name> [more options] \n"
+"  playhrt [options] \n"
 "\n"
-"  This program reads raw audio data (stereo) from the network and plays \n"
-"  it on a local (ALSA) sound device. \n"
+"  This program reads raw(!) stereo audio data from stdin, a file or the \n"
+"  network and plays it on a local (ALSA) sound device. \n"
 "\n"
-"  Alternatively, data can be read from stdin. \n"
+"  The program repeats in a given number of loops per second: reading a\n"
+"  chunk of input data into a buffer, preparing the next output chunk, then\n"
+"  it sleeps until a specific instant of time and after wakeup it writes\n"
+"  an output chunk. \n"
 "\n"
 "  The Linux kernel needs the highres-timer functionality enabled (on most\n"
 "  systems this is the case).\n"
 "  \n"
 "  USAGE HINTS\n"
 "  \n"
-"  This program tries to write chunks of data to the sound device \n"
-"  in very regular time intervals. It is recommended to give this program\n"
-"  a high priority and not to run too many other things on the same computer \n"
-"  during playback. A high priority can be specified with the 'chrt'\n"
-"  command:\n"
+"  It is recommended to give this program a high priority and not to run\n"
+"  too many other things on the same computer during playback. A high\n"
+"  priority can be specified with the 'chrt' command:\n"
 "\n"
-"  chrt -f 99 netplay .....\n"
+"  chrt -f 99 playhrt .....\n"
 "\n"
 "  (Depending on the configuration of your computer you may need root\n"
-"  priviledges for this, in that case use 'sudo chrt -f 99 netplay ....' \n"
+"  priviledges for this, in that case use 'sudo chrt -f 99 playhrt ....' \n"
 "  or give 'chrt' setuid permissions.)\n"
 "\n"
-"  It can be sensible to use the program 'bufhrt' from this package to\n"
-"  send the data on <hostname>.\n"
+"  While running this program the computer should run as few other things\n"
+"  as possible. In particular we recommend to generate the input data\n"
+"  on a different computer and to send them via the network to 'playhrt'\n"
+"  using the program 'bufhrt' which is also contained in this package. \n"
 "  \n"
 "  OPTIONS\n"
 "\n"
@@ -82,7 +85,7 @@ void usage( ) {
 "      per sample), 'S32_LE' (true 32 bit signed integer samples).\n"
 "\n"
 "  --loops-per-second=intval, -n intval\n"
-"      the number of loops per second in which 'netplay' reads some\n"
+"      the number of loops per second in which 'playhrt' reads some\n"
 "      data from the network into a buffer, sleeps until a precise\n"
 "      moment and then writes a chunk of data to the sound device. \n"
 "      Typical values would be 1000 (the default) or 2000.\n"
@@ -96,14 +99,14 @@ void usage( ) {
 "      It can make sense to play around with this value, a larger\n"
 "      value (say up to some or many megabytes) can be useful if the \n"
 "      network is busy. Smaller values (a few kilobytes) may enable\n"
-"      'netplay' to mainly operate in memory cache and improve sound\n"
+"      'playhrt' to mainly operate in memory cache and improve sound\n"
 "      quality. Default is 65536 bytes. You may specify 0 or some small\n"
-"      number, in which case 'netplay' will compute and use a minimal\n"
+"      number, in which case 'playhrt' will compute and use a minimal\n"
 "      amount of memory it needs, depending on the other parameters.\n"
 "\n"
 "  --input-size=intval, -i intval\n"
-"      the amount of data 'netplay' tries to read from the network\n"
-"      during each loop (if needed). If not given or small 'netplay' \n"
+"      the amount of data 'playhrt' tries to read from the network\n"
+"      during each loop (if needed). If not given or small 'playhrt' \n"
 "      uses the smallest amount it needs. You may try some larger \n"
 "      value such that it is not necessary to read data during every \n"
 "      loop. \n"
@@ -111,7 +114,7 @@ void usage( ) {
 "  --hw-buffer=intval, -c intval\n"
 "      the buffer size used on the sound device. Default is 16384.\n"
 "      It may be worth to experiment a bit with this, in particular\n"
-"      to try some smaller values. When 'netplay' is called with\n"
+"      to try some smaller values. When 'playhrt' is called with\n"
 "      --verbose it should report on the range allowed by the device.\n"
 " \n"
 "  --extra-bytes-per-second=floatval, -e floatval\n"
@@ -125,7 +128,7 @@ void usage( ) {
 "      faster to the sound device). The default is 0.\n"
 "\n"
 "  --extra-frames-out=intval, -o intval\n"
-"      when in one loop not all data were written the program need to\n"
+"      when in one loop not all data were written the program needs to\n"
 "      write some additional frames the next time. This specifies the\n"
 "      maximal extra amount before an underrun of data is assumed.\n"
 "      (Default is 24.)\n"
@@ -139,16 +142,29 @@ void usage( ) {
 "  --help, -h\n"
 "      print this help page and abort.\n"
 "\n"
-"  EXAMPLE\n"
+"  EXAMPLES\n"
 "\n"
 "  We read from myserver on port 5123 stereo data in 32-bit integer\n"
 "  format with a sample rate of 192000. We want to run 1000 loops per \n"
 "  second (in particular a good choice for USB devices), our only sound\n"
 "  device is 'hw:0,0' and we want to write non-blocking to the device:\n"
 "\n"
-"  chrt -f 99 netplay --host=myserver --port=5123 --loops-per-second=1000 \\\n"
+"  chrt -f 99 playhrt --host=myserver --port=5123 --loops-per-second=1000 \\\n"
 "      --device=hw:0,0 --sample-rate=192000 --sample-format=S32_LE \\\n"
 "      --non-blocking --verbose \n"
+"\n"
+"  To play a local CD quality flac file 'music.flac' you need to use \n"
+"  another program to unpack the raw audio data. In this example we use \n"
+"  'sox':\n"
+"\n"
+"  sox musik.flac -t raw | chrt -f 99 playhrt --stdin \\\n"
+"          --loops-per-second=1000 --device=hw:0,0 --sample-rate=44100 \\\n"
+"          --sample-format=S16_LE --non-blocking --verbose \n"
+"\n"
+"  If playback has an underrun after a while use \n"
+"      (value of --hw-buffer) / (2 x number of seconds until underrun)\n"
+"  an an estimate for the argument --extra-bytes-per-second.\n"
+"  (And use a negative argument in case of overruns.)\n"
 "\n"
 );
 }
@@ -275,7 +291,7 @@ int main(int argc, char *argv[])
           break;
         case 'V':
           fprintf(stderr, 
-                  "netplay (version %s of frankl's stereo utilities", 
+                  "playhrt (version %s of frankl's stereo utilities", 
                   VERSION);
 #ifdef ALSANC
           fprintf(stderr, ", with alsa-lib patch");
@@ -289,7 +305,7 @@ int main(int argc, char *argv[])
     }
     /* check some arguments and set some parameters */
     if ((host == NULL || port == NULL) && sfd < 0) {
-       fprintf(stderr, "Must give host and port or --stdin.\n");
+       fprintf(stderr, "Must give --host and --port or --stdin.\n");
        exit(3);
     }
     /* compute nanoseconds per loop (wrt local clock) */

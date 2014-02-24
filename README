@@ -15,9 +15,9 @@ Overview:
       implements a simple form of the RACE algorithm and can be used
       for volume control
 
- - netplay
-      reads an audio stream from the network (or stdin) and sends it 
-      to a sound device
+ - playhrt
+      reads an audio stream from the network or stdin and plays it 
+      on a sound device
 
  - bufhrt
       reads data from stdin, a file, or the network and writes them
@@ -27,12 +27,12 @@ Overview:
       reads data from stdin and writes it cyclically to some files,
       and vice versa   (to buffer data in a ramdisk)
 
- - listenloop/send_to_netplay
-      example scripts which demonstrate the use of netplay/bufhrt
+ - listenloop/send_to_playhrt
+      example scripts which demonstrate the use of playhrt/bufhrt
 
-The main idea of 'netplay' and 'bufhrt' is that data are written in
-very regular intervals using the highres timer functionality
-of the Linux kernel.
+The main idea of 'playhrt' and 'bufhrt' is that data are written in
+very regular intervals using the highres timer functionality of the 
+Linux kernel.
 
 See the file INSTALL for installation instructions.
 

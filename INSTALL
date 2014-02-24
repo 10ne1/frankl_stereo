@@ -6,26 +6,26 @@ You need a Linux system with a C-compiler and header files for libasound.
      sudo apt-get install gcc libasound2-dev
 )
 
-To compile the programs 'netplay', 'bufhrt', 'volrace', 'writeloop'
+To compile the programs 'playhrt', 'bufhrt', 'volrace', 'writeloop'
 and 'catloop' say:
 
   make
 
 Then copy the files to some directory in your PATH.
 
-Another version of 'netplay' can be compiled using a patched
+Another version of 'playhrt' can be compiled using a patched
 ALSA library. See below how to compile the patched library. Once you
 have done this, say:
 
-  make bin/netplay_ALSANC ALSANC=/my/alsa/install/dir/
+  make bin/playhrt_ALSANC ALSANC=/my/alsa/install/dir/
 
 or for a statically linked version:
   
-  make bin/netplay_static ALSANC=/my/alsa/install/dir/
+  make bin/playhrt_static ALSANC=/my/alsa/install/dir/
 
-Then use one of these instead of bin/netplay.
+Then use one of these instead of bin/playhrt.
 
-For a good performance of 'netplay' and 'bufhrt' you should use a Linux
+For a good performance of 'playhrt' and 'bufhrt' you should use a Linux
 kernel with highres timers enabled. This is the case for most Linux
 distributions, you can check it by running the utility 'bin/highrestest'.
 

@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 ##  This example script can be used on the computer with the sound device.
-##  It starts up a loop that starts 'netplay' repeatedly.
+##  It starts up a loop that starts 'playhrt' repeatedly.
 ##  Adjust the values of the various variables before starting it.
 
 ##  See the script 'send_to_listenloop' for an example how to send audio
@@ -17,13 +17,13 @@ ALSABUFSIZE=8192  # enlarge if playback is unstable
 # slight adjustment in case of over- or underrun
 EXTRABYTESPERSEC=0
 
-# how to call the 'netplay' program  
-#NETPLAY=netplay
+# how to call the 'playhrt' program  
+#NETPLAY=playhrt
 # change path to location of your patched ALSA lib
 export LD_LIBRARY_PATH=/root/alsa/lib/:
-NETPLAY=netplay_ALSANC # we use version with patched alsa lib
+NETPLAY=playhrt_ALSANC # we use version with patched alsa lib
 
-# some more netplay options
+# some more playhrt options
 INBUFSIZE=20000
 INCHUNKSIZE=0   # use minimal possible amount
 FREQ=1000    # 1000 or 2000 are good values for USB interfaces
@@ -31,7 +31,7 @@ NONBLOCK=--non-blocking-write
 # uncomment until fine tuning is done:
 #VERBOSE=--verbose
 
-# we give 'netplay' highest priority in the real time scheduler
+# we give 'playhrt' highest priority in the real time scheduler
 # (start with sudo or make 'chrt' setuid root)
 CHRT="chrt -f 99"
 
