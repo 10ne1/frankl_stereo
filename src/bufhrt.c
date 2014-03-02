@@ -16,6 +16,7 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
@@ -186,8 +187,9 @@ int main(int argc, char *argv[])
           break;
         case 'o':
           outfile = optarg;
-          if ((connfd = open(outfile, O_WRONLY)) == -1) {
-              fprintf(stderr, "Cannot open output file %s.\n", outfile);
+          if ((connfd = open(outfile, O_WRONLY | O_CREAT, 00644)) == -1) {
+              fprintf(stderr, "Cannot open output file %s.\n   %s\n", 
+                               outfile, strerror(errno));
               exit(3);
           }
           break;
