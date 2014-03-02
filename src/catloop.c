@@ -16,6 +16,7 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
 
 /* help page */
 /* vim hint to remove resp. add quotes: 
@@ -76,7 +77,7 @@ int main(int argc, char *argv[])
 {
     char **fname, *fnames[100];
     void * buf;
-    int optc, infile, i, blocksize, c;
+    int optc, infile, i, blocksize, ret, c;
   
     /* read command line options */
     static struct option longoptions[] = {
@@ -140,7 +141,15 @@ int main(int argc, char *argv[])
           exit(0);
        }
        while (c > 0) {
-          write(1, buf, c);
+          ret = write(1, buf, c);
+          if (ret == -1) {
+              fprintf(stderr, "write error: %s\n", strerror(errno));
+              exit(3);
+          }
+          if (ret < c) {
+              fprintf(stderr, "Could not write full buffer.\n");
+              exit(4);
+          }
           c = read(infile, buf, blocksize);
        }
        close(infile);

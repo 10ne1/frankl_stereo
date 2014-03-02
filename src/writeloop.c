@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 {
     char **fname, *fnames[100], **tmpname, *tmpnames[100];
     void * buf;
-    int outfile, i, blocksize, size, sz, c, optc;
+    int outfile, i, blocksize, size, ret, sz, c, optc;
 
     /* read command line options */
     static struct option longoptions[] = {
@@ -171,7 +171,15 @@ int main(int argc, char *argv[])
           exit(0);
        }
        while (c > 0 && sz < size) {
-          write(outfile, buf, c);
+          ret = write(outfile, buf, c);
+          if (ret == -1) {
+              fprintf(stderr, "write error: %s\n", strerror(errno));
+              exit(5);
+          }
+          if (ret < c) {
+              fprintf(stderr, "Could not write full buffer.\n");
+              exit(6);
+          }
           c = read(0, buf, blocksize);
           sz += c;
        }
