@@ -88,6 +88,8 @@ void usage( ) {
 "      This file is reread by the program when it was changed, and the\n"
 "      parameters are faded to the new values. This way this program can\n"
 "      be used as volume (and RACE parameter) control during audio playback.\n"
+"      The file may only contain the value of --volume, in this case RACE\n"
+"      will be disabled.\n"
 "\n"
 "  --buffer-length=intval, -b intval\n"
 "      the length of the chunks read and written. Default is 8192\n"
@@ -146,12 +148,13 @@ double mtimens (char* fnam) {
     return (double)sb.st_mtim.tv_sec + (double) sb.st_mtim.tv_nsec*0.000000001;
 }
 
-/* read parameters for vol, delay, att and blen from file 
+/* read parameters for vol, delay, att from file 
    use init==1 during initialization, program will terminate in case of
    problem; later use init==0, if a problem occurs, the parameters are
    just left as they are                                                */
 int getparams(char* fnam, double* vp, int* delay, double* att, int init) {
   FILE* params;
+  int ok;
   params = fopen(fnam, "r");
   if (!params) {
      if (init) {
@@ -161,7 +164,9 @@ int getparams(char* fnam, double* vp, int* delay, double* att, int init) {
      } else
        return 0;
   }
-  if (!fscanf(params, "%lf %d %lf", vp, delay, att)) {
+  ok = fscanf(params, "%lf %d %lf", vp, delay, att);
+  if (ok == EOF || ok == 0) {
+     fclose(params);
      if (init) {
        fprintf(stderr, "Cannot read parameters from  %s\n", fnam);
        fflush(stderr);
@@ -169,6 +174,11 @@ int getparams(char* fnam, double* vp, int* delay, double* att, int init) {
      }  else
        return 0;
   } 
+  if (ok < 3) {
+     /* allow only volume in file, disable RACE */
+     *delay = 13;
+     *att = 0.0;
+  }
   fclose(params);
   return 1;
 }
