@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
           rename(*tmpname, *fname);
           exit(0);
        }
-       while (c > 0 && sz < size) {
+       while (c > 0 && sz <= size) {
           ret = write(outfile, buf, c);
           if (ret == -1) {
               fprintf(stderr, "write error: %s\n", strerror(errno));
