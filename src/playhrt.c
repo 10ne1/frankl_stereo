@@ -157,7 +157,7 @@ void usage( ) {
 "  another program to unpack the raw audio data. In this example we use \n"
 "  'sox':\n"
 "\n"
-"  sox musik.flac -t raw | chrt -f 99 playhrt --stdin \\\n"
+"  sox music.flac -t raw - | chrt -f 99 playhrt --stdin \\\n"
 "          --loops-per-second=1000 --device=hw:0,0 --sample-rate=44100 \\\n"
 "          --sample-format=S16_LE --non-blocking --verbose \n"
 "\n"

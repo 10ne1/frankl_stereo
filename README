@@ -16,8 +16,8 @@ Overview:
       for volume control
 
  - playhrt
-      reads an audio stream from the network or stdin and plays it 
-      on a sound device
+      reads an audio stream from the network, stdin or a file and plays 
+      it on a sound device
 
  - bufhrt
       reads data from stdin, a file, or the network and writes them
