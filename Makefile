@@ -1,5 +1,5 @@
 
-VERSION=0.dev
+VERSION=0.5
 
 # normal CFLAGS
 CFLAGS=-O2 -Wall
