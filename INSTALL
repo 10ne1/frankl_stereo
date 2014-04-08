@@ -11,7 +11,7 @@ and 'catloop' say:
 
   make
 
-Then copy the files to some directory in your PATH.
+Then copy the files in the bin/ directory to some directory in your PATH.
 
 Another version of 'playhrt' can be compiled using a patched
 ALSA library. See below how to compile the patched library. Once you
