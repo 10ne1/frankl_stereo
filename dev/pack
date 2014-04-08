@@ -1,0 +1,14 @@
+#!/bin/bash
+
+VERSION=$1
+TDIR=frankl_stereo-$VERSION
+
+make veryclean
+mkdir $TDIR
+cp -a * $TDIR
+rm -rf $TDIR/dev
+
+tar czvf ${TDIR}.tar.gz $TDIR
+
+rm -rf $TDIR
+
