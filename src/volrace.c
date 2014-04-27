@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
   while (TRUE) {
     if (floatin) {
       mlen = fread((void*)inpfloat, 2*sizeof(float), blen, stdin);
-      for (i=0; i<mlen; i++) 
+      for (i=0; i<2*mlen; i++) 
         inp[i] = (double)(inpfloat[i]);
     } else 
       mlen = fread((void*)inp, 2*sizeof(double), blen, stdin);
