@@ -1,5 +1,5 @@
 
-VERSION=0.5
+VERSION=0.6
 
 # normal CFLAGS
 CFLAGS=-O2 -Wall
