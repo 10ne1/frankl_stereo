@@ -157,7 +157,7 @@ void usage( ) {
 "  another program to unpack the raw audio data. In this example we use \n"
 "  'sox':\n"
 "\n"
-"  sox music.flac -t raw - | chrt -f 99 playhrt --stdin \\\n"
+"  sox musik.flac -t raw | chrt -f 99 playhrt --stdin \\\n"
 "          --loops-per-second=1000 --device=hw:0,0 --sample-rate=44100 \\\n"
 "          --sample-format=S16_LE --non-blocking --verbose \n"
 "\n"
@@ -491,11 +491,12 @@ int main(int argc, char *argv[])
         /* here we use snd_pcm_writei_nc (if available in patched ALSA
            library. This avoids some error checks and high cpu usage with 
            small hardware buffer sizes */
-        while ((s = snd_pcm_writei_nc(pcm_handle, wbuf, wnext)) < 0) {
+        s = snd_pcm_writei_nc(pcm_handle, wbuf, wnext);
 #else
         /* otherwise we use the standard snd_pcm_writei  */ 
-        while ((s = snd_pcm_writei(pcm_handle, wbuf, wnext)) < 0) {
+        s = snd_pcm_writei(pcm_handle, wbuf, wnext);
 #endif
+        while (s < 0) {
             s = snd_pcm_recover(pcm_handle, s, 0);
             if (s < 0) {
                 snd_pcm_prepare(pcm_handle);
@@ -505,6 +506,11 @@ int main(int argc, char *argv[])
             if (verbose) 
                fprintf(stderr, "bad write at (%ld sec %ld nsec)\n", 
                        mtime.tv_sec, mtime.tv_nsec);
+#ifdef ALSANC
+            s = snd_pcm_writei_nc(pcm_handle, wbuf, wnext);
+#else
+            s = snd_pcm_writei(pcm_handle, wbuf, wnext);
+#endif
         }
         /* we count output and bad loops */
         if (s < wnext) {
