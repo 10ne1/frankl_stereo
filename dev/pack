@@ -6,7 +6,7 @@ TDIR=frankl_stereo-$VERSION
 make veryclean
 mkdir $TDIR
 cp -a * $TDIR
-rm -rf $TDIR/dev
+rm -rf $TDIR/dev $TDIR/$TDIR
 
 tar czvf ${TDIR}.tar.gz $TDIR
 

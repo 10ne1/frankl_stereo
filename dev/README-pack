@@ -1,0 +1,21 @@
+    README for distribution
+
+- prepare source archive (in main directory of checked out archive):
+    dev/pack 0.6
+
+- tag current commit:
+    git tag v0.6
+
+- prepare precompiled binaries (in checked out or unpacked archive):
+    # galaxy
+    make bin86 ARCH=i686 ALSANC=~/stereo/bitbucket/alsa/
+    # beteigeuze
+    make bin86 ARCH=x86_64 ALSANC=~/stereo/bitbucket/alsa/
+    # musik
+    make bin86 ARCH=ARIAG25 ALSANC=/root/alsa/
+    # pi
+    make binPi ARCH=RaspberryPi ALSANC=/root/alsa/
+
+- copy archives to web repository and adjust description/links
+
+
