@@ -1,0 +1,9 @@
+        Changes between published versions
+
+0.5 to 0.6
+
+- playhrt: now writes data directly after sleep, before loop that checks
+  the result 
+
+- volrace did not work with 32-bit input, is fixed now (reported by
+  lililinux)
