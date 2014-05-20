@@ -172,7 +172,8 @@ void usage( ) {
 
 int main(int argc, char *argv[])
 {
-    int sfd, s, moreinput, verbose=0;
+    int sfd, s, moreinput, verbose, overwrite;
+    uint *uptr;
     long blen, hlen, ilen, olen, extra, loopspersec, 
          nsec, count, wnext, badloops, badreads, readmissing;
     long long icount, ocount, badframes;
@@ -202,6 +203,7 @@ int main(int argc, char *argv[])
         {"extra-bytes-per-second", required_argument, 0, 'e' },
         {"extra-frames-out", required_argument, 0, 'o' },
         {"non-blocking-write", no_argument, 0, 'N' },
+        {"overwrite", required_argument, 0, 'O' },
         {"verbose", no_argument, 0, 'v' },
         {"version", no_argument, 0, 'V' },
         {"help", no_argument, 0, 'h' },
@@ -228,6 +230,7 @@ int main(int argc, char *argv[])
     sfd = -1;
     extrabps = 0;
     nonblock = 0;
+    overwrite = 0;
     verbose = 0;
     while ((optc = getopt_long(argc, argv, "r:p:Sb:i:n:s:f:c:d:e:o:NvVh",  
             longoptions, &optind)) != -1) {
@@ -285,6 +288,9 @@ int main(int argc, char *argv[])
           break;
         case 'N':
           nonblock = 1;
+          break;
+        case 'O':
+          overwrite = atoi(optarg);
           break;
         case 'v':
           verbose = 1;
@@ -565,10 +571,20 @@ int main(int argc, char *argv[])
         /* copy data for next write:
            they are always lying in the same memory address and so hopefully
            in processor cache     */
-        memcpy(wbuf, optr, wnext*bytesperframe);
-        memcpy(wbuf2, wbuf, wnext*bytesperframe);
+        //memcpy(wbuf, optr, wnext*bytesperframe);
+        //memcpy(wbuf2, wbuf, wnext*bytesperframe);
+        for (s = 0, uptr=(uint*)wbuf; s < wnext*bytesperframe/sizeof(uint)+1; s++)
+             *uptr++ = 2863311530;
+        for (s = 0, uptr=(uint*)wbuf; s < wnext*bytesperframe/sizeof(uint)+1; s++)
+             *uptr++ = 4294967295;
+        for (s = 0, uptr=(uint*)wbuf; s < wnext*bytesperframe/sizeof(uint)+1; s++)
+             *uptr++ = 0;
+        memcpy(wbuf2, optr, wnext*bytesperframe);
+        memcpy(wbuf, wbuf2, wnext*bytesperframe);
         /* overwrite multiple times (does this make a difference?)  */
-        memcpy(wbuf2, wbuf, wnext*bytesperframe);
+        for (s = 0; s < overwrite; s++) 
+            //memcpy(wbuf2, wbuf, wnext*bytesperframe);
+            memcpy(wbuf, wbuf2, wnext*bytesperframe);
     }
     /* cleanup network connection and sound device */
     close(sfd);
