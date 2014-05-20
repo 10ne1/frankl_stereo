@@ -128,9 +128,10 @@ int main(int argc, char *argv[])
 {
     struct sockaddr_in serv_addr;
     int listenfd, connfd, ifd, s, moreinput, optval=1, verbose, rate,
-        extrabps, bytesperframe, optc;
+        extrabps, bytesperframe, optc, interval, overwrite;
+    uint *uptr;
     long blen, hlen, ilen, olen, outpersec, loopspersec, nsec, count, wnext,
-         badreads, badreadbytes, badwrites, badwritebytes;
+         badreads, badreadbytes, badwrites, badwritebytes, lcount;
     long long icount, ocount;
     void *buf, *wbuf, *wbuf2, *iptr, *optr, *max;
     char *port, *inhost, *inport, *outfile, *infile;
@@ -151,6 +152,8 @@ int main(int argc, char *argv[])
         {"host-to-read", required_argument, 0, 'H' },
         {"port-to-read", required_argument, 0, 'P' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
+        {"overwrite", required_argument, 0, 'O' },
+        {"interval", no_argument, 0, 'I' },
         {"verbose", no_argument, 0, 'v' },
         {"version", no_argument, 0, 'V' },
         {"help", no_argument, 0, 'h' },
@@ -177,6 +180,8 @@ int main(int argc, char *argv[])
     inhost = NULL;
     inport = NULL;
     infile = NULL;
+    overwrite = 0;
+    interval = 0;
     extrabps = 0;
     verbose = 0;
     while ((optc = getopt_long(argc, argv, "p:o:b:i:n:m:s:f:F:H:P:e:vVh",
@@ -238,6 +243,12 @@ int main(int argc, char *argv[])
         case 'e':
           extrabps = atof(optarg);
           break;
+        case 'O':
+          overwrite = atoi(optarg);
+          break;
+        case 'I':
+          interval = 1;
+          break;
         case 'v':
           verbose = 1;
           break;
@@ -257,7 +268,7 @@ int main(int argc, char *argv[])
            outpersec = rate * bytesperframe;
        } else {
            fprintf(stderr, "Specify --bytes-per-second (or rate and format "
-                           "of audio data.\n");
+                           "of audio data).\n");
            exit(5);
        }
     }
@@ -287,7 +298,11 @@ int main(int argc, char *argv[])
     olen = outpersec/loopspersec;
     if (olen <= 0)
         olen = 1;
-    if (ilen < olen) {
+    if (interval) {
+        if (ilen == 0) 
+            ilen = 16384;
+    }
+    else if (ilen < olen) {
         ilen = olen + 2;
         if (olen*loopspersec == outpersec)
             ilen = olen;
@@ -356,6 +371,85 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Cannot accept outgoing connection.\n");
             exit(12);
         }
+    }
+    
+    /* interval mode */
+    if (interval) {
+       count = 0;
+       while (moreinput) {
+          count++;
+          /* fill buffer */
+          for (iptr = buf; iptr < buf + 2*hlen - ilen; ) {
+              s = read(ifd, iptr, ilen);
+              if (s < 0) {
+                  fprintf(stderr, "Read error.\n");
+                  exit(18);
+              }
+              icount += s;
+              if (s == 0) {
+                  moreinput = 0;
+                  break;
+              }
+              iptr += s;
+          }
+
+          /* write out */
+          optr = buf;
+          wnext = olen;
+          memcpy(wbuf, optr, wnext);
+          clock_gettime(CLOCK_MONOTONIC, &mtime);
+          for (lcount=0, off=looperr; optr < iptr; lcount++, off+=looperr) {
+              /* once cache is filled and other side is reading we reset time */
+              /*if (lcount == 50) clock_gettime(CLOCK_MONOTONIC, &mtime);*/
+              mtime.tv_nsec += nsec;
+              if (mtime.tv_nsec > 999999999) {
+                mtime.tv_nsec -= 1000000000;
+                mtime.tv_sec++;
+              }
+              while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, 
+                                                                 &mtime, NULL)
+                     != 0) ;
+              /* write a chunk, this comes first after waking from sleep */
+              s = write(connfd, wbuf, wnext);
+              if (s < 0) {
+                  fprintf(stderr, "Write error.\n");
+                  exit(15);
+              }
+              ocount += s;
+              optr += s;
+              wnext = olen + wnext - s;
+              if (off >= 1.0) {
+                 off -= 1.0;
+                 wnext++;
+              }
+              if (wnext >= 2*olen) {
+                 fprintf(stderr, "Underrun by %ld (%ld sec %ld nsec).\n",
+                           wnext - 2*olen, mtime.tv_sec, mtime.tv_nsec);
+                 wnext = 2*olen-1;
+              }
+              s = iptr - optr;
+              if (s <= wnext) {
+                  wnext = s;
+              }
+              /* copy data for next write */
+              /* data are always lying in same position (hopefully processor
+                 cache)   */
+              memcpy(wbuf, optr, wnext);
+              memcpy(wbuf2, wbuf, wnext);
+              /* not sure if this improves performance */
+              for (s = 0; s < overwrite; s++) 
+                  memcpy(wbuf2, wbuf, wnext);
+          }
+       }
+
+       close(connfd);
+       shutdown(listenfd, SHUT_RDWR);
+       close(listenfd);
+       close(ifd);
+       if (verbose)
+           fprintf(stderr, "Intervals: %ld, total bytes: %lld in %lld out.\n",
+                            count, icount, ocount);
+       exit(0);
     }
 
     /* fill at least half buffer */
@@ -460,10 +554,17 @@ int main(int argc, char *argv[])
         /* copy data for next write */
         /* data are always lying in same position (hopefully processor
            cache)   */
-        memcpy(wbuf, optr, wnext);
-        memcpy(wbuf2, wbuf, wnext);
+        for (s=0, uptr=(uint*)wbuf; s < wnext/sizeof(uint)+1; s++)
+             *uptr++ = 2863311530u;
+        for (s=0, uptr=(uint*)wbuf; s < wnext/sizeof(uint)+1; s++)
+             *uptr++ = 4294967295u;
+        for (s=0, uptr=(uint*)wbuf; s < wnext/sizeof(uint)+1; s++)
+             *uptr++ = 0;
+        memcpy(wbuf2, optr, wnext);
+        memcpy(wbuf, wbuf2, wnext);
         /* not sure if this improves performance */
-        memcpy(wbuf2, wbuf, wnext);
+        for (s = 0; s < overwrite; s++) 
+            memcpy(wbuf, wbuf2, wnext);
     }
     close(connfd);
     shutdown(listenfd, SHUT_RDWR);
