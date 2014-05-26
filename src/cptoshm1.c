@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
       rlen = read(ifd, buf, BUFSIZE);
       /* memcpy(ptr, buf, rlen);  */
       {
-         int count=5, *ip, *op, tlen;
+         int count=1, *ip, *op, tlen;
          while (count--) {
             for (ip = (int*)buf, op = (int*)ptr, tlen = 0;
                        tlen < rlen/sizeof(int); tlen++, ip++, op++)
