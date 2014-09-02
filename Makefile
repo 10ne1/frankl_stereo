@@ -42,10 +42,10 @@ bin/highrestest: src/highrestest.c
 	$(CC) $(CFLAGSNO) -o bin/highrestest src/highrestest.c -lrt
 
 bin/writeloop: src/writeloop.c
-	$(CC) $(CFLAGS) -o bin/writeloop src/writeloop.c
+	$(CC) $(CFLAGS) -o bin/writeloop src/writeloop.c -lpthread -lrt
 
 bin/catloop: src/catloop.c
-	$(CC) $(CFLAGS) -o bin/catloop src/catloop.c
+	$(CC) $(CFLAGS) -o bin/catloop src/catloop.c -lpthread -lrt
 
 clean: 
 	rm -rf src/version.h bin tmp
@@ -60,8 +60,8 @@ bin86:
 	cc -O2 -Wall -o bin/volrace src/volrace.c -static
 	cc -O0 -Wall -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -static -lrt 
 	cc -O0 -Wall -o bin/highrestest src/highrestest.c -static -lrt
-	cc -O2 -Wall -o bin/writeloop src/writeloop.c -static
-	cc -O2 -Wall -o bin/catloop src/catloop.c -static
+	cc -O2 -Wall -o bin/writeloop src/writeloop.c -static -lpthread -lrt
+	cc -O2 -Wall -o bin/catloop src/catloop.c -static -lpthread -lrt
 	cc -O0 -Wall  -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt src/playhrt.c tmp/net.o -lasound -lrt -lpthread -lm -ldl -static -lasound
 	cd bin; \
 	strip * ; \
@@ -74,8 +74,8 @@ binPi:
 	cc -O2 -Wall -o bin/volrace src/volrace.c -static
 	cc -O0 -Wall -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -static  
 	cc -O0 -Wall -o bin/highrestest src/highrestest.c -static 
-	cc -O2 -Wall -o bin/writeloop src/writeloop.c -static
-	cc -O2 -Wall -o bin/catloop src/catloop.c -static
+	cc -O2 -Wall -o bin/writeloop src/writeloop.c -static -lpthread -lrt
+	cc -O2 -Wall -o bin/catloop src/catloop.c -static -lpthread -lrt
 	cc -O0 -Wall  -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt src/playhrt.c tmp/net.o -lasound -lpthread -lm -ldl -static -lasound
 	cd bin; \
 	strip * ; \

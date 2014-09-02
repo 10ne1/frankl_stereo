@@ -1,25 +1,27 @@
 /*
 catloop.c                Copyright frankl 2013-2014
 
-This file is part of frankl's stereo utilities. 
-See the file License.txt of the distribution and 
+This file is part of frankl's stereo utilities.
+See the file License.txt of the distribution and
 http://www.gnu.org/licenses/gpl.txt for license details.
 */
 
-#define _GNU_SOURCE 
+#define _GNU_SOURCE
 #include "version.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <semaphore.h>
 #include <errno.h>
 #include <string.h>
 
 /* help page */
-/* vim hint to remove resp. add quotes: 
+/* vim hint to remove resp. add quotes:
       s/^"\(.*\)\\n"$/\1/
       s/.*$/"\0\\n"/
 */
@@ -75,33 +77,43 @@ void usage( ) {
 
 int main(int argc, char *argv[])
 {
-    char **fname, *fnames[100];
+    char **fname, *fnames[100], **tmpname, *tmpnames[100], **mem, *mems[100],
+         *ptr;
+    sem_t **sem, *sems[100], **semw, *semsw[100];
     void * buf;
-    int optc, infile, i, blocksize, ret, c;
-  
+    int optc, infile, fd[100], i, blocksize, size, flen, sz, ret, shared, c;
+    struct stat sb;
+
+
     /* read command line options */
     static struct option longoptions[] = {
         {"block-size", required_argument, 0,  'b' },
+        {"shared", no_argument, 0, 's' },
         {"version", no_argument, 0, 'V' },
         {"help", no_argument, 0, 'h' },
         {0,         0,                 0,  0 }
     };
-    
+
     if (argc == 1) {
        usage();
        exit(0);
     }
     /* defaults */
     blocksize = 2000;
-    while ((optc = getopt_long(argc, argv, "b:Vh",  
+    shared = 0;
+    size = 0;
+    while ((optc = getopt_long(argc, argv, "b:Vh",
             longoptions, &optind)) != -1) {
         switch (optc) {
         case 'b':
           blocksize = atoi(optarg);
           break;
+        case 's':
+          shared = 1;
+          break;
         case 'V':
-          fprintf(stderr, 
-                  "catloop (version %s of frankl's stereo utilities)\n", 
+          fprintf(stderr,
+                  "catloop (version %s of frankl's stereo utilities)\n",
                   VERSION);
           exit(0);
         default:
@@ -119,42 +131,144 @@ int main(int argc, char *argv[])
        fprintf(stderr, "Cannot allocate buffer.\n");
        exit(4);
     }
-    for (i=optind; i < argc; i++)
+    for (i=optind; i < argc; i++) {
+       if (i>100) {
+          fprintf(stderr, "Too many filenames.");
+          exit(6);
+       }
        fnames[i-optind] = argv[i];
+       if (shared) {
+           /* open semaphore with same name as memory */
+           if ((sems[i-optind] = sem_open(fnames[i-optind], O_RDWR))
+                                                        == SEM_FAILED) {
+               fprintf(stderr, "Cannot open semaphore.");
+               exit(20);
+           }
+           /* also semaphore for write lock */
+           tmpnames[i-optind] = (char*)malloc(strlen(argv[i])+5);
+           strncpy(tmpnames[i-optind], fnames[i-optind], strlen(argv[i]));
+           strncat(tmpnames[i-optind], ".TMP", 4);
+           if ((semsw[i-optind] = sem_open(tmpnames[i-optind], O_RDWR))
+                                                         == SEM_FAILED) {
+               fprintf(stderr, "Cannot open write semaphore.");
+               exit(21);
+           }
+           /* open shared memory */
+           if ((fd[i-optind] = shm_open(fnames[i-optind],
+                               O_RDONLY, S_IRUSR | S_IWUSR)) == -1){
+               fprintf(stderr, "Cannot open shared memory %s.\n", fnames[i-optind]);
+               exit(22);
+           }
+           if (size == 0) { /* find size of shared memory chunks */
+               if (fstat(fd[i-optind], &sb) == -1) {
+                   fprintf(stderr, "Cannot stat shared memory %s.\n", fnames[i-optind]);
+                   exit(24);
+               }
+               size = sb.st_size - sizeof(int);
+           }
+           /* map the memory */
+           mems[i-optind] = mmap(NULL, sizeof(int)+size,
+                           PROT_READ, MAP_SHARED, fd[i-optind], 0);
+           if (mems[i-optind] == MAP_FAILED) {
+               fprintf(stderr, "Cannot map shared memory.");
+               exit(24);
+           }
+       }
+    }
     fnames[argc-optind] = NULL;
     fname = fnames;
-    while (1) {
-       if (*fname == NULL)
-          fname = fnames;
-       while (access(*fname, R_OK) != 0)
-         usleep(500);
-       infile = open(*fname, O_RDONLY|O_NOATIME);
-       if (!infile) {
-          fprintf(stderr, "Cannot open for reading: %s\n", *fname);
-          exit(2);
-       }
-       c = read(infile, buf, blocksize);
-       if (c == 0) {
-          /* empty file means quit */
-          close(infile);
-          unlink(*fname);
-          exit(0);
-       }
-       while (c > 0) {
-          ret = write(1, buf, c);
-          if (ret == -1) {
-              fprintf(stderr, "write error: %s\n", strerror(errno));
-              exit(3);
-          }
-          if (ret < c) {
-              fprintf(stderr, "Could not write full buffer.\n");
-              exit(4);
-          }
-          c = read(infile, buf, blocksize);
-       }
-       close(infile);
-       unlink(*fname);
-       fname++;
+    if (shared) {
+        tmpname = tmpnames;
+        mem = mems;
+        sem = sems;
+        semw = semsw;
+        while (1) {
+           if (*fname == NULL) {
+              fname = fnames;
+              tmpname = tmpnames;
+              mem = mems;
+              sem = sems;
+              semw = semsw;
+           }
+           /* get lock */
+           sem_wait(*sem);
+           /* find length of relevant memory chunk */
+           flen = *((int*)(*mem));
+           if (flen == 0) {
+               /* done, unlink semaphores and shared memory */
+               fname = fnames;
+               tmpname = tmpnames;
+               while (*fname != NULL) {
+                   shm_unlink(*fname);
+                   sem_unlink(*fname);
+                   sem_unlink(*tmpname);
+                   fname++;
+                   tmpname++;
+               }
+               exit(0);
+           }
+           /* write shared memory content to stdout */
+           ptr = *mem + sizeof(int);
+           sz = 0;
+           while (sz < flen) {
+               if (flen - sz <= blocksize)
+                   c = flen - sz;
+               else
+                   c = blocksize;
+               ret = write(1, ptr, c);
+               if (ret == -1) {
+                  fprintf(stderr, "write error: %s\n", strerror(errno));
+                  exit(31);
+               }
+               if (ret < c) {
+                  fprintf(stderr, "Could not write block.\n");
+                  exit(32);
+               }
+               ptr += c;
+               sz += c;
+           }
+           /* mark as writable */
+           sem_post(*semw);
+           fname++;
+           tmpname++;
+           mem++;
+           sem++;
+           semw++;
+        }
+    } else {
+        while (1) {
+           if (*fname == NULL)
+              fname = fnames;
+           while (access(*fname, R_OK) != 0)
+             usleep(500);
+           infile = open(*fname, O_RDONLY|O_NOATIME);
+           if (!infile) {
+              fprintf(stderr, "Cannot open for reading: %s\n", *fname);
+              exit(2);
+           }
+           c = read(infile, buf, blocksize);
+           if (c == 0) {
+              /* empty file means quit */
+              close(infile);
+              unlink(*fname);
+              exit(0);
+           }
+           while (c > 0) {
+              ret = write(1, buf, c);
+              if (ret == -1) {
+                  fprintf(stderr, "write error: %s\n", strerror(errno));
+                  exit(3);
+              }
+              if (ret < c) {
+                  fprintf(stderr, "Could not write full buffer.\n");
+                  exit(4);
+              }
+              c = read(infile, buf, blocksize);
+           }
+           close(infile);
+           unlink(*fname);
+           fname++;
+        }
     }
 }
 

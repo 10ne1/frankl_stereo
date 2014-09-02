@@ -1,26 +1,28 @@
 /*
 writeloop.c                Copyright frankl 2013-2014
 
-This file is part of frankl's stereo utilities. 
-See the file License.txt of the distribution and 
+This file is part of frankl's stereo utilities.
+See the file License.txt of the distribution and
 http://www.gnu.org/licenses/gpl.txt for license details.
 */
 
 
-#define _GNU_SOURCE 
+#define _GNU_SOURCE
 #include "version.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+#include <semaphore.h>
 
 /* help page */
-/* vim hint to remove resp. add quotes: 
+/* vim hint to remove resp. add quotes:
       s/^"\(.*\)\\n"$/\1/
       s/.*$/"\0\\n"/
 */
@@ -79,21 +81,26 @@ void usage( ) {
 }
 
 
+
 int main(int argc, char *argv[])
 {
-    char **fname, *fnames[100], **tmpname, *tmpnames[100];
+    char **fname, *fnames[100], **tmpname, *tmpnames[100], **mem, *mems[100],
+         *ptr;
+    sem_t **sem, *sems[100], **semw, *semsw[100];
     void * buf;
-    int outfile, i, blocksize, size, ret, sz, c, optc;
+    int outfile, fd[100], i, s, shared, blocksize, size, ret, sz, c, optc;
+    uint *uptr;
 
     /* read command line options */
     static struct option longoptions[] = {
         {"block-size", required_argument, 0,  'b' },
         {"file-size", required_argument,       0,  'f' },
+        {"shared", no_argument, 0, 's' },
         {"version", no_argument, 0, 'V' },
         {"help", no_argument, 0, 'h' },
         {0,         0,                 0,  0 }
     };
-    
+
     if (argc == 1) {
        usage();
        exit(0);
@@ -101,7 +108,8 @@ int main(int argc, char *argv[])
     /* defaults */
     blocksize = 2000;
     size = 64000;
-    while ((optc = getopt_long(argc, argv, "b:f:Vh",  
+    shared = 0;
+    while ((optc = getopt_long(argc, argv, "b:f:sVh",
             longoptions, &optind)) != -1) {
         switch (optc) {
         case 'b':
@@ -110,9 +118,12 @@ int main(int argc, char *argv[])
         case 'f':
           size = atoi(optarg);
           break;
+        case 's':
+          shared = 1;
+          break;
         case 'V':
-          fprintf(stderr, 
-                  "writeloop (version %s of frankl's stereo utilities)\n", 
+          fprintf(stderr,
+                  "writeloop (version %s of frankl's stereo utilities)\n",
                   VERSION);
           exit(0);
         default:
@@ -140,54 +151,138 @@ int main(int argc, char *argv[])
           exit(6);
        }
        fnames[i-optind] = argv[i];
-       unlink(fnames[i-optind]);
+       if (shared) {
+           /* open semaphore with same name as memory */
+           if ((sems[i-optind] = sem_open(fnames[i-optind], O_CREAT | O_EXCL,
+                                                    0666, 0)) == SEM_FAILED) {
+               fprintf(stderr, "Cannot open semaphore.");
+               exit(20);
+           }
+           /* open shared memory */
+           if ((fd[i-optind] = shm_open(fnames[i-optind],
+                               O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) == -1){
+               fprintf(stderr, "Cannot open shared memory %s.\n", fnames[i-optind]);
+               exit(22);
+           }
+           /* truncate to size plus info about used memory */
+           if (ftruncate(fd[i-optind], sizeof(int)+size) == -1) {
+               fprintf(stderr, "Cannot truncate to %d.", size);
+               exit(23);
+           }
+           /* map the memory */
+           mems[i-optind] = mmap(NULL, sizeof(int)+size,
+                           PROT_READ | PROT_WRITE, MAP_SHARED, fd[i-optind], 0);
+           if (mems[i-optind] == MAP_FAILED) {
+               fprintf(stderr, "Cannot map shared memory.");
+               exit(24);
+           }
+       } else
+           unlink(fnames[i-optind]);
+
        tmpnames[i-optind] = (char*)malloc(strlen(argv[i])+5);
        strncpy(tmpnames[i-optind], fnames[i-optind], strlen(argv[i]));
        strncat(tmpnames[i-optind], ".TMP", 4);
-       unlink(tmpnames[i-optind]);
+       if (shared) {
+           /* open semaphore with TMP name for write lock */
+           if ((semsw[i-optind] = sem_open(tmpnames[i-optind], O_CREAT | O_EXCL,
+                                                    0666, 0)) == SEM_FAILED) {
+               fprintf(stderr, "Cannot open write semaphore.");
+               exit(21);
+           }
+           sem_post(semsw[i-optind]);
+       } else
+           unlink(tmpnames[i-optind]);
     }
     fnames[argc-optind] = NULL;
     fname = fnames;
     tmpname = tmpnames;
-    sz = 0;
-    c = read(0, buf, blocksize);
-    sz += c;
-    while (1) {
-       if (*fname == NULL)
-          fname = fnames;
-          tmpname = tmpnames;
-       /* take short naps until next file can be written */
-       while (access(*fname, R_OK) == 0)
-         usleep(50000);
-       outfile = open(*tmpname, O_WRONLY|O_CREAT|O_NOATIME, 00444);
-       if (!outfile) {
-          fprintf(stderr, "Cannot open for writing: %s\n", *fname);
-          exit(4);
-       }
-       if (c == 0) {
-          /* done, indicate by empty file */
-          close(outfile);
-          rename(*tmpname, *fname);
-          exit(0);
-       }
-       while (c > 0 && sz <= size) {
-          ret = write(outfile, buf, c);
-          if (ret == -1) {
-              fprintf(stderr, "write error: %s\n", strerror(errno));
-              exit(5);
-          }
-          if (ret < c) {
-              fprintf(stderr, "Could not write full buffer.\n");
-              exit(6);
-          }
-          c = read(0, buf, blocksize);
-          sz += c;
-       }
-       sz = c;
-       close(outfile);
-       rename(*tmpname, *fname);
-       fname++;
-       tmpname++;
+
+    if (shared) {
+        mem = mems;
+        sem = sems;
+        semw = semsw;
+        c = read(0, buf, blocksize);
+        sz = c;
+        while (1) {
+           if (*fname == NULL) {
+              fname = fnames;
+              tmpname = tmpnames;
+              mem = mems;
+              sem = sems;
+              semw = semsw;
+           }
+           /* get write lock */
+           sem_wait(*semw);
+           if (c == 0) {
+              /* done, indicate by empty memory */
+              *((int*)(*mem)) = 0;
+              sem_post(*sem);
+              exit(0);
+           }
+           ptr = *mem+sizeof(int);
+           for (s = 0, uptr=(uint*)ptr; s < size/sizeof(uint); s++)
+             *uptr++ = 2863311530u;
+           for (s = 0, uptr=(uint*)ptr; s < size/sizeof(uint); s++)
+             *uptr++ = 4294967295u;
+           for (s = 0, uptr=(uint*)ptr; s < size/sizeof(uint); s++)
+             *uptr++ = 0;
+           while (c > 0 && sz <= size) {
+              memcpy(ptr, buf, c);
+              ptr += c;
+              c = read(0, buf, blocksize);
+              sz += c;
+           }
+           *((int*)(*mem)) = sz - c;
+           sz = c;
+           sem_post(*sem);
+           fname++;
+           tmpname++;
+           mem++;
+           sem++;
+           semw++;
+        }
+    } else {
+        sz = 0;
+        c = read(0, buf, blocksize);
+        sz += c;
+        while (1) {
+           if (*fname == NULL) {
+              fname = fnames;
+              tmpname = tmpnames;
+           }
+           /* take short naps until next file can be written */
+           while (access(*fname, R_OK) == 0)
+             usleep(50000);
+           outfile = open(*tmpname, O_WRONLY|O_CREAT|O_NOATIME, 00444);
+           if (!outfile) {
+              fprintf(stderr, "Cannot open for writing: %s\n", *fname);
+              exit(4);
+           }
+           if (c == 0) {
+              /* done, indicate by empty file */
+              close(outfile);
+              rename(*tmpname, *fname);
+              exit(0);
+           }
+           while (c > 0 && sz <= size) {
+              ret = write(outfile, buf, c);
+              if (ret == -1) {
+                  fprintf(stderr, "write error: %s\n", strerror(errno));
+                  exit(5);
+              }
+              if (ret < c) {
+                  fprintf(stderr, "Could not write full buffer.\n");
+                  exit(6);
+              }
+              c = read(0, buf, blocksize);
+              sz += c;
+           }
+           sz = c;
+           close(outfile);
+           rename(*tmpname, *fname);
+           fname++;
+           tmpname++;
+        }
     }
 }
 
