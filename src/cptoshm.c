@@ -11,7 +11,7 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#define BUFSIZE 10000000
+#define BUFSIZE 4000000
 int main(int argc, char *argv[])
 {
   char *infile, *memname;
