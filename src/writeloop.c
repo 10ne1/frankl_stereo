@@ -88,12 +88,13 @@ int main(int argc, char *argv[])
          *ptr;
     sem_t **sem, *sems[100], **semw, *semsw[100];
     void * buf;
-    int outfile, fd[100], i, s, shared, blocksize, size, ret, sz, c, optc;
+    int outfile, fd[100], inp, i, s, shared, blocksize, size, ret, sz, c, optc;
     uint *uptr;
 
     /* read command line options */
     static struct option longoptions[] = {
         {"block-size", required_argument, 0,  'b' },
+        {"from-file", required_argument, 0, 'F' },
         {"file-size", required_argument,       0,  'f' },
         {"shared", no_argument, 0, 's' },
         {"version", no_argument, 0, 'V' },
@@ -109,7 +110,8 @@ int main(int argc, char *argv[])
     blocksize = 2000;
     size = 64000;
     shared = 0;
-    while ((optc = getopt_long(argc, argv, "b:f:sVh",
+    inp = 0;  /* stdin */
+    while ((optc = getopt_long(argc, argv, "b:f:F:sVh",
             longoptions, &optind)) != -1) {
         switch (optc) {
         case 'b':
@@ -117,6 +119,12 @@ int main(int argc, char *argv[])
           break;
         case 'f':
           size = atoi(optarg);
+          break;
+        case 'F':
+          if ((inp = open(optarg, O_RDONLY)) == -1) {
+            fprintf(stderr, "Cannot open input file %s.\n", optarg);
+            exit(3);
+          }
           break;
         case 's':
           shared = 1;
@@ -201,7 +209,7 @@ int main(int argc, char *argv[])
         mem = mems;
         sem = sems;
         semw = semsw;
-        c = read(0, buf, blocksize);
+        c = read(inp, buf, blocksize);
         sz = c;
         while (1) {
            if (*fname == NULL) {
@@ -229,7 +237,7 @@ int main(int argc, char *argv[])
            while (c > 0 && sz <= size) {
               memcpy(ptr, buf, c);
               ptr += c;
-              c = read(0, buf, blocksize);
+              c = read(inp, buf, blocksize);
               sz += c;
            }
            *((int*)(*mem)) = sz - c;
@@ -243,7 +251,7 @@ int main(int argc, char *argv[])
         }
     } else {
         sz = 0;
-        c = read(0, buf, blocksize);
+        c = read(inp, buf, blocksize);
         sz += c;
         while (1) {
            if (*fname == NULL) {
@@ -274,7 +282,7 @@ int main(int argc, char *argv[])
                   fprintf(stderr, "Could not write full buffer.\n");
                   exit(6);
               }
-              c = read(0, buf, blocksize);
+              c = read(inp, buf, blocksize);
               sz += c;
            }
            sz = c;
