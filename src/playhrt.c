@@ -574,9 +574,9 @@ int main(int argc, char *argv[])
         //memcpy(wbuf, optr, wnext*bytesperframe);
         //memcpy(wbuf2, wbuf, wnext*bytesperframe);
         for (s = 0, uptr=(uint*)wbuf; s < wnext*bytesperframe/sizeof(uint)+1; s++)
-             *uptr++ = 2863311530;
+             *uptr++ = 2863311530u;
         for (s = 0, uptr=(uint*)wbuf; s < wnext*bytesperframe/sizeof(uint)+1; s++)
-             *uptr++ = 4294967295;
+             *uptr++ = 4294967295u;
         for (s = 0, uptr=(uint*)wbuf; s < wnext*bytesperframe/sizeof(uint)+1; s++)
              *uptr++ = 0;
         memcpy(wbuf2, optr, wnext*bytesperframe);
