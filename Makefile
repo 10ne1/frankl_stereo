@@ -42,7 +42,7 @@ bin/highrestest: src/highrestest.c
 	$(CC) $(CFLAGSNO) -o bin/highrestest src/highrestest.c -lrt
 
 bin/writeloop: src/writeloop.c
-	$(CC) $(CFLAGS) -o bin/writeloop src/writeloop.c -lpthread -lrt
+	$(CC) $(CFLAGS) -D_FILE_OFFSET_BITS=64 -o bin/writeloop src/writeloop.c -lpthread -lrt
 
 bin/catloop: src/catloop.c
 	$(CC) $(CFLAGS) -o bin/catloop src/catloop.c -lpthread -lrt
