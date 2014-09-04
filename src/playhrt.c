@@ -84,6 +84,10 @@ void usage( ) {
 "      many DACs), 'S24_3LE' (also 24 bit integers but only using 3 bytes\n"
 "      per sample), 'S32_LE' (true 32 bit signed integer samples).\n"
 "\n"
+"  --number-channels=intval, -k intval\n"
+"      the number of channels in the (interleaved) audio stream. The \n"
+"      default is 2 (stereo).\n"
+"\n"
 "  --loops-per-second=intval, -n intval\n"
 "      the number of loops per second in which 'playhrt' reads some\n"
 "      data from the network into a buffer, sleeps until a precise\n"
@@ -172,7 +176,7 @@ void usage( ) {
 
 int main(int argc, char *argv[])
 {
-    int sfd, s, moreinput, verbose, overwrite;
+    int sfd, s, moreinput, verbose, overwrite, nrchannels;
     uint *uptr;
     long blen, hlen, ilen, olen, extra, loopspersec, 
          nsec, count, wnext, badloops, badreads, readmissing;
@@ -198,6 +202,7 @@ int main(int argc, char *argv[])
         {"loops-per-second", required_argument, 0,  'n' },
         {"sample-rate", required_argument, 0,  's' },
         {"sample-format", required_argument, 0, 'f' },
+        {"number-channels", required_argument, 0, 'k' },
         {"hw-buffer", required_argument, 0, 'c' },
         {"device", required_argument, 0, 'd' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
@@ -228,11 +233,12 @@ int main(int argc, char *argv[])
     extra = 24;
     pcm_name = NULL;
     sfd = -1;
+    nrchannels = 2;
     extrabps = 0;
     nonblock = 0;
     overwrite = 0;
     verbose = 0;
-    while ((optc = getopt_long(argc, argv, "r:p:Sb:i:n:s:f:c:d:e:o:NvVh",  
+    while ((optc = getopt_long(argc, argv, "r:p:Sb:i:n:s:f:k:c:d:e:o:NvVh",  
             longoptions, &optind)) != -1) {
         switch (optc) {
         case 'r':
@@ -273,6 +279,9 @@ int main(int argc, char *argv[])
              fprintf(stderr, "Sample format %s not recognized.\n", optarg);
              exit(1);
           }
+          break;
+        case 'k':
+          nrchannels = atoi(optarg);
           break;
         case 'c':
           hwbufsize = atoi(optarg);
@@ -408,8 +417,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error setting rate.\n");
         exit(10);
     }
-    if (snd_pcm_hw_params_set_channels(pcm_handle, hwparams, 2) < 0) {
-        fprintf(stderr, "Error setting channels.\n");
+    if (snd_pcm_hw_params_set_channels(pcm_handle, hwparams, nrchannels) < 0) {
+        fprintf(stderr, "Error setting channels to %d.\n", nrchannels);
         exit(11);
     }
     if (verbose) {
