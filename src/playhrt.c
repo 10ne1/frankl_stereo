@@ -1,8 +1,8 @@
 /*
 playhrt.c                Copyright frankl 2013-2014
 
-This file is part of frankl's stereo utilities. 
-See the file License.txt of the distribution and 
+This file is part of frankl's stereo utilities.
+See the file License.txt of the distribution and
 http://www.gnu.org/licenses/gpl.txt for license details.
 */
 
@@ -21,7 +21,7 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 
 
 /* help page */
-/* vim hint to remove resp. add quotes: 
+/* vim hint to remove resp. add quotes:
       s/^"\(.*\)\\n"$/\1/
       s/.*$/"\0\\n"/
 */
@@ -40,7 +40,10 @@ void usage( ) {
 "\n"
 "  The Linux kernel needs the highres-timer functionality enabled (on most\n"
 "  systems this is the case).\n"
-"  \n"
+"\n"
+"  The program optionally supports direct writes to the sound device via \n"
+"  mmap'ed memory, which sometimes results in improved sound.\n"
+"\n"
 "  USAGE HINTS\n"
 "  \n"
 "  It is recommended to give this program a high priority and not to run\n"
@@ -98,6 +101,11 @@ void usage( ) {
 "      write data to sound device in a non-blocking fashion. This can\n"
 "      improve sound quality, but the timing must be very precise.\n"
 "\n"
+"  --mmap, -M\n"
+"      write data directly to the sound device via an mmap'ed memory\n"
+"      area. In this mode --buffer-size and --input-size are ignored.\n"
+"      If you hear clicks enlarge the --hw-buffer.\n"
+"\n"
 "  --buffer-size=intval, -b intval\n"
 "      the size of the internal buffer for incoming data in bytes.\n"
 "      It can make sense to play around with this value, a larger\n"
@@ -109,18 +117,23 @@ void usage( ) {
 "      amount of memory it needs, depending on the other parameters.\n"
 "\n"
 "  --input-size=intval, -i intval\n"
-"      the amount of data 'playhrt' tries to read from the network\n"
-"      during each loop (if needed). If not given or small 'playhrt' \n"
-"      uses the smallest amount it needs. You may try some larger \n"
-"      value such that it is not necessary to read data during every \n"
-"      loop. \n"
+"      the amount of data in bytes 'playhrt' tries to read from the\n"
+"      network during each loop (if needed). If not given or small\n"
+"      'playhrt' uses the smallest amount it needs. You may try some\n"
+"      larger value such that it is not necessary to read data during\n"
+"      every loop.\n"
 "\n"
 "  --hw-buffer=intval, -c intval\n"
-"      the buffer size used on the sound device. Default is 16384.\n"
-"      It may be worth to experiment a bit with this, in particular\n"
-"      to try some smaller values. When 'playhrt' is called with\n"
-"      --verbose it should report on the range allowed by the device.\n"
+"      the buffer size (number of frames) used on the sound device.\n"
+"      Default is 16384. It may be worth to experiment a bit with this,\n"
+"      in particular to try some smaller values. When 'playhrt' is\n"
+"      called with --verbose it should report on the range allowed by\n"
+"      the device.\n"
 " \n"
+"  --period-size=intval -P intval\n"
+"      the period size is the chunk size (number of frames) read by the\n"
+"      sound device. The default is chosen by the hardware driver.\n"
+"\n"
 "  --extra-bytes-per-second=floatval, -e floatval\n"
 "      usually the number of bytes per second that need to written\n"
 "      to the sound device is computed as the sample rate times the\n"
@@ -161,14 +174,20 @@ void usage( ) {
 "  another program to unpack the raw audio data. In this example we use \n"
 "  'sox':\n"
 "\n"
-"  sox musik.flac -t raw | chrt -f 99 playhrt --stdin \\\n"
+"  sox musik.flac -t raw - | chrt -f 99 playhrt --stdin \\\n"
 "          --loops-per-second=1000 --device=hw:0,0 --sample-rate=44100 \\\n"
 "          --sample-format=S16_LE --non-blocking --verbose \n"
 "\n"
+"  You may also add the --mmap option to each of these examples.\n"
+"\n"
 "  If playback has an underrun after a while use \n"
-"      (value of --hw-buffer) / (2 x number of seconds until underrun)\n"
-"  an an estimate for the argument --extra-bytes-per-second.\n"
+"      (value of --hw-buffer) x (number of bytes per frame) \n"
+"                             / (2 x number of seconds until underrun)\n"
+"  as an estimate for the argument --extra-bytes-per-second.\n"
 "  (And use a negative argument in case of overruns.)\n"
+"  With --mmap --verbose it is shown with time stamps if the hardware \n"
+"  buffer is filled less than 20%% or more than 80%%, which can be used \n"
+"  to find a sensible value for --extra-bytes-per-second.\n"
 "\n"
 );
 }
@@ -176,9 +195,9 @@ void usage( ) {
 
 int main(int argc, char *argv[])
 {
-    int sfd, s, moreinput, verbose, overwrite, nrchannels;
+    int sfd, s, moreinput, err, verbose, overwrite, nrchannels, startcount;
     uint *uptr;
-    long blen, hlen, ilen, olen, extra, loopspersec, 
+    long blen, hlen, ilen, olen, extra, loopspersec,
          nsec, count, wnext, badloops, badreads, readmissing;
     long long icount, ocount, badframes;
     void *buf, *wbuf, *wbuf2, *iptr, *optr, *max;
@@ -190,8 +209,11 @@ int main(int argc, char *argv[])
     snd_pcm_format_t format;
     char *host, *port, *pcm_name;
     int optc, nonblock, rate, bytesperframe;
-    snd_pcm_uframes_t hwbufsize;
-    
+    snd_pcm_uframes_t hwbufsize, periodsize, offset, frames;
+    snd_pcm_access_t access;
+    snd_pcm_sframes_t avail;
+    const snd_pcm_channel_area_t *areas;
+
     /* read command line options */
     static struct option longoptions[] = {
         {"host", required_argument, 0,  'r' },
@@ -203,7 +225,9 @@ int main(int argc, char *argv[])
         {"sample-rate", required_argument, 0,  's' },
         {"sample-format", required_argument, 0, 'f' },
         {"number-channels", required_argument, 0, 'k' },
+        {"mmap", no_argument, 0, 'M' },
         {"hw-buffer", required_argument, 0, 'c' },
+        {"period-size", required_argument, 0, 'P' },
         {"device", required_argument, 0, 'd' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
         {"extra-frames-out", required_argument, 0, 'o' },
@@ -214,7 +238,7 @@ int main(int argc, char *argv[])
         {"help", no_argument, 0, 'h' },
         {0,         0,                 0,  0 }
     };
-    
+
     if (argc == 1) {
        usage();
        exit(0);
@@ -223,22 +247,24 @@ int main(int argc, char *argv[])
     host = NULL;
     port = NULL;
     blen = 65536;
-    ilen = 0; 
+    ilen = 0;
     loopspersec = 1000;
     rate = 44100;
     format = SND_PCM_FORMAT_S16_LE;
     bytesperframe = 4;
     hwbufsize = 16384;
+    periodsize = 0;
     /* nr of frames that wnext can be larger than olen */
     extra = 24;
     pcm_name = NULL;
     sfd = -1;
     nrchannels = 2;
+    access = SND_PCM_ACCESS_RW_INTERLEAVED;
     extrabps = 0;
     nonblock = 0;
     overwrite = 0;
     verbose = 0;
-    while ((optc = getopt_long(argc, argv, "r:p:Sb:i:n:s:f:k:c:d:e:o:NvVh",  
+    while ((optc = getopt_long(argc, argv, "r:p:Sb:i:n:s:f:k:Mc:P:d:e:o:NvVh",
             longoptions, &optind)) != -1) {
         switch (optc) {
         case 'r':
@@ -283,8 +309,14 @@ int main(int argc, char *argv[])
         case 'k':
           nrchannels = atoi(optarg);
           break;
+        case 'M':
+          access = SND_PCM_ACCESS_MMAP_INTERLEAVED;
+          break;
         case 'c':
           hwbufsize = atoi(optarg);
+          break;
+        case 'P':
+          periodsize = atoi(optarg);
           break;
         case 'd':
           pcm_name = optarg;
@@ -305,8 +337,8 @@ int main(int argc, char *argv[])
           verbose = 1;
           break;
         case 'V':
-          fprintf(stderr, 
-                  "playhrt (version %s of frankl's stereo utilities", 
+          fprintf(stderr,
+                  "playhrt (version %s of frankl's stereo utilities",
                   VERSION);
 #ifdef ALSANC
           fprintf(stderr, ", with alsa-lib patch");
@@ -339,7 +371,7 @@ int main(int argc, char *argv[])
             ilen = bytesperframe * olen;
         else
             ilen = bytesperframe * (olen+1);
-        if (verbose) 
+        if (verbose)
             fprintf(stderr, "Setting input chunk size to %ld bytes.\n", ilen);
     }
     /* need big enough input buffer */
@@ -347,22 +379,26 @@ int main(int argc, char *argv[])
         blen = 3*ilen;
     }
     hlen = blen/2;
-    if (olen*loopspersec == rate) 
+    if (olen*loopspersec == rate)
         looperr = 0.0;
     else
         looperr = (1.0*rate)/loopspersec - 1.0*olen;
     moreinput = 1;
     icount = 0;
     ocount = 0;
-    
+    /* for mmap try to set hwbuffer to multiple of output per loop */
+    if (access == SND_PCM_ACCESS_MMAP_INTERLEAVED) {
+        hwbufsize = hwbufsize - (hwbufsize % olen);
+    }
+
     /* need blen plus some overlap for (circular) input buffer */
     if (! (buf = malloc(blen+ilen+(olen+extra)*bytesperframe)) ) {
-        fprintf(stderr, "Cannot allocate buffer of length %ld.\n", 
+        fprintf(stderr, "Cannot allocate buffer of length %ld.\n",
                 blen+ilen+(olen+extra)*bytesperframe);
         exit(2);
     }
     if (verbose) {
-        fprintf(stderr, "Input buffer size is %ld bytes.\n", 
+        fprintf(stderr, "Input buffer size is %ld bytes.\n",
                 blen+ilen+(olen+extra)*bytesperframe);
     }
     /* we put some overlap before the reference pointer */
@@ -372,12 +408,12 @@ int main(int argc, char *argv[])
     iptr = buf;
     optr = buf;
     if (! (wbuf = malloc(2*olen*bytesperframe)) ) {
-        fprintf(stderr, "Cannot allocate buffer of length %ld.\n", 
+        fprintf(stderr, "Cannot allocate buffer of length %ld.\n",
                 2*olen*bytesperframe);
         exit(3);
     }
     if (! (wbuf2 = malloc(2*olen*bytesperframe)) ) {
-        fprintf(stderr, "Cannot allocate another buffer of length %ld.\n", 
+        fprintf(stderr, "Cannot allocate another buffer of length %ld.\n",
                 2*olen*bytesperframe);
         exit(4);
     }
@@ -404,8 +440,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Can not configure this PCM device.\n");
         exit(7);
     }
-    if (snd_pcm_hw_params_set_access(pcm_handle, hwparams, 
-                                SND_PCM_ACCESS_RW_INTERLEAVED) < 0) {
+    if (snd_pcm_hw_params_set_access(pcm_handle, hwparams, access) < 0) {
         fprintf(stderr, "Error setting access.\n");
         exit(8);
     }
@@ -421,16 +456,27 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error setting channels to %d.\n", nrchannels);
         exit(11);
     }
+    if (periodsize != 0) {
+      if (snd_pcm_hw_params_set_period_size(
+                                pcm_handle, hwparams, periodsize, 0) < 0) {
+          fprintf(stderr, "Error setting period size to %ld.\n", periodsize);
+          exit(11);
+      }
+      if (verbose) {
+          fprintf(stderr, "Setting period size explicitly to %ld frames.",
+                          periodsize);
+      }
+    }
     if (verbose) {
         snd_pcm_uframes_t min=1, max=100000000;
-        snd_pcm_hw_params_set_buffer_size_minmax(pcm_handle, hwparams, 
+        snd_pcm_hw_params_set_buffer_size_minmax(pcm_handle, hwparams,
                                                                 &min, &max);
-        fprintf(stderr, 
+        fprintf(stderr,
                 "Min and max buffer size of device %ld .. %ld - ", min, max);
     }
-    if (snd_pcm_hw_params_set_buffer_size(pcm_handle, hwparams, 
+    if (snd_pcm_hw_params_set_buffer_size(pcm_handle, hwparams,
                                                       hwbufsize) < 0) {
-        fprintf(stderr, "Error setting buffersize.\n");
+        fprintf(stderr, "Error setting buffersize to %ld.\n", hwbufsize);
         exit(12);
     }
     snd_pcm_hw_params_get_buffer_size(hwparams, &hwbufsize);
@@ -447,10 +493,10 @@ int main(int argc, char *argv[])
         exit(14);
     }
     if (snd_pcm_sw_params_current(pcm_handle, swparams) < 0) {
-        fprintf(stderr, "Cannot get current SW params.\n"); 
+        fprintf(stderr, "Cannot get current SW params.\n");
         exit(15);
     }
-    if (snd_pcm_sw_params_set_start_threshold(pcm_handle, 
+    if (snd_pcm_sw_params_set_start_threshold(pcm_handle,
                                           swparams, hwbufsize/2) < 0) {
         fprintf(stderr, "Cannot set start threshold.\n");
         exit(16);
@@ -460,7 +506,14 @@ int main(int argc, char *argv[])
         exit(17);
     }
     snd_pcm_sw_params_free (swparams);
-        
+
+    /* main loop */
+    badloops = 0;
+    badframes = 0;
+    badreads = 0;
+    readmissing = 0;
+
+  if (access == SND_PCM_ACCESS_RW_INTERLEAVED) {
     /* fill half buffer */
     for (; iptr < buf + 2*hlen - ilen; ) {
         s = read(sfd, iptr, ilen);
@@ -479,18 +532,13 @@ int main(int argc, char *argv[])
         wnext = (iptr-optr)/bytesperframe;
     else
         wnext = olen;
-        
-    /* main loop */
-    badloops = 0;
-    badframes = 0;
-    badreads = 0;
-    readmissing = 0;
+
     if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
         fprintf(stderr, "Cannot get monotonic clock.\n");
         exit(19);
     }
-    if (verbose) 
-       fprintf(stderr, 
+    if (verbose)
+       fprintf(stderr,
                "Start time (%ld sec %ld nsec)\n", mtime.tv_sec, mtime.tv_nsec);
     memcpy(wbuf, optr, wnext*bytesperframe);
     for (count=1, off=looperr; 1; count++, off+=looperr) {
@@ -504,11 +552,11 @@ int main(int argc, char *argv[])
         /* write a chunk, this comes first immediately after waking up */
 #ifdef ALSANC
         /* here we use snd_pcm_writei_nc (if available in patched ALSA
-           library. This avoids some error checks and high cpu usage with 
+           library. This avoids some error checks and high cpu usage with
            small hardware buffer sizes */
         s = snd_pcm_writei_nc(pcm_handle, wbuf, wnext);
 #else
-        /* otherwise we use the standard snd_pcm_writei  */ 
+        /* otherwise we use the standard snd_pcm_writei  */
         s = snd_pcm_writei(pcm_handle, wbuf, wnext);
 #endif
         while (s < 0) {
@@ -518,8 +566,8 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "<<<<< Cannot write, resetted >>>>\n");
             }
             clock_gettime(CLOCK_MONOTONIC, &mtime);
-            if (verbose) 
-               fprintf(stderr, "bad write at (%ld sec %ld nsec)\n", 
+            if (verbose)
+               fprintf(stderr, "bad write at (%ld sec %ld nsec)\n",
                        mtime.tv_sec, mtime.tv_nsec);
 #ifdef ALSANC
             s = snd_pcm_writei_nc(pcm_handle, wbuf, wnext);
@@ -540,8 +588,8 @@ int main(int argc, char *argv[])
            wnext++;
         }
         if (wnext >= olen+extra) {
-           if (verbose) 
-              fprintf(stderr, "Underrun by %ld bytes at (%ld sec %ld nsec).\n", 
+           if (verbose)
+              fprintf(stderr, "Underrun by %ld bytes at (%ld sec %ld nsec).\n",
                       wnext - olen - extra, mtime.tv_sec, mtime.tv_nsec);
            wnext = olen+extra-1;
         }
@@ -566,8 +614,8 @@ int main(int argc, char *argv[])
             iptr += s;
             /* copy input to beginning if we reach end of buffer */
             if (iptr >= max) {
-                memcpy(buf-(olen+extra)*bytesperframe, 
-                                         max-(olen+extra)*bytesperframe, 
+                memcpy(buf-(olen+extra)*bytesperframe,
+                                         max-(olen+extra)*bytesperframe,
                                          iptr-max+(olen+extra)*bytesperframe);
                 iptr -= blen;
             }
@@ -589,9 +637,86 @@ int main(int argc, char *argv[])
         memcpy(wbuf2, optr, wnext*bytesperframe);
         memcpy(wbuf, wbuf2, wnext*bytesperframe);
         /* overwrite multiple times (does this make a difference?)  */
-        for (s = 0; s < overwrite; s++) 
+        for (s = 0; s < overwrite; s++)
             memcpy(wbuf, wbuf2, wnext*bytesperframe);
     }
+  } else if (access == SND_PCM_ACCESS_MMAP_INTERLEAVED) {
+    /* mmap access */
+    /* why does start threshold not work ??? */
+   if (verbose)
+       fprintf(stderr, "Using mmap access.\n");
+   startcount = hwbufsize/(2*olen);
+   if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
+        fprintf(stderr, "Cannot get monotonic clock.\n");
+        exit(19);
+    }
+    if (verbose)
+       fprintf(stderr,
+               "Start time (%ld sec %ld nsec)\n", mtime.tv_sec, mtime.tv_nsec);
+    for (count=1, off=looperr; 1; count++, off+=looperr) {
+        if (count == startcount)  snd_pcm_start(pcm_handle);
+        /* compute time for next wakeup */
+        mtime.tv_nsec += nsec;
+        if (mtime.tv_nsec > 999999999) {
+          mtime.tv_nsec -= 1000000000;
+          mtime.tv_sec++;
+        }
+        avail = snd_pcm_avail_update(pcm_handle);
+        if (verbose) {
+          if (5*avail < hwbufsize && count > startcount)
+              fprintf(stderr,
+                      "available mmap buffer small: %ld (at %ld s %ld ns)\n",
+                      avail, mtime.tv_sec, mtime.tv_nsec);
+          if (5*avail > 4*hwbufsize && count > startcount)
+              fprintf(stderr,
+                      "available mmap buffer large: %ld (at %ld s %ld ns)\n",
+                      avail, mtime.tv_sec, mtime.tv_nsec);
+        }
+        frames = olen;
+        if (off > 1.0) {
+            frames++;
+            off -= 1.0;
+        }
+        err = snd_pcm_mmap_begin(pcm_handle, &areas, &offset, &frames);
+        if (err < 0) {
+            fprintf(stderr, "Don't get mmap address.\n");
+            exit(21);
+        }
+        ilen = frames * bytesperframe;
+        iptr = areas[0].addr + offset * bytesperframe;
+        /* clean memory */
+        for (s = 0, uptr=(uint*)buf; s < ilen/sizeof(uint); s++)
+             *uptr++ = 2863311530u;
+        for (s = 0, uptr=(uint*)buf; s < ilen/sizeof(uint); s++)
+             *uptr++ = 4294967295u;
+        for (s = 0, uptr=(uint*)buf; s < ilen/sizeof(uint); s++)
+             *uptr++ = 0;
+        for (s = 0, uptr=(uint*)iptr; s < ilen/sizeof(uint); s++)
+             *uptr++ = 2863311530u;
+        for (s = 0, uptr=(uint*)iptr; s < ilen/sizeof(uint); s++)
+             *uptr++ = 4294967295u;
+        for (s = 0, uptr=(uint*)iptr; s < ilen/sizeof(uint); s++)
+             *uptr++ = 0;
+        /* read into buffer such that writing into mmap region after
+           sleep is faster */
+        s = read(sfd, buf, ilen);
+        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
+        /* instead of direct   s = read(sfd, iptr, ilen);   */
+        memcpy((void*)iptr, (void*)buf, s);
+        snd_pcm_mmap_commit(pcm_handle, offset, frames);
+        if (s < 0) {
+            fprintf(stderr, "Read error.\n");
+            exit(22);
+        } else if (s < ilen) {
+            badreads++;
+            readmissing += (ilen-s);
+        }
+        icount += s;
+        ocount += s;
+        if (s == 0) /* done */
+            break;
+    }
+  }
     /* cleanup network connection and sound device */
     close(sfd);
     snd_pcm_drain(pcm_handle);
