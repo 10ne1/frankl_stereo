@@ -55,7 +55,7 @@ void usage( ) {
 "\n"
 "  OPTIONS\n"
 "\n"
-"  --port=intval, -p intval\n"
+"  --port-to-write=intval, -p intval\n"
 "      the network port number to which data are written instead of stdout.\n"
 "\n"
 "  --outfile=fname, -o fname\n"
@@ -63,7 +63,7 @@ void usage( ) {
 "\n"
 "  --bytes-per-second=intval, -m intval\n"
 "      the number of bytes to be written to the output per second.\n"
-"      (Alternatively, in case of audio data the options --sample-rate and \n"
+"      (Alternatively, in case of audio data, the options --sample-rate and \n"
 "      --sample-format can be given instead.)\n"
 "\n"
 "  --loops-per-second=intval, -n intval\n"
@@ -86,6 +86,9 @@ void usage( ) {
 "  --port-to-read=intval, -P intval\n"
 "      a port number, see --host-to-read.\n"
 "\n"
+"  --stdin, -S\n"
+"      read data from stdin. This is the default.\n"
+"\n"
 "  --input-size=intval, -i intval\n"
 "      the number of bytes to be read per loop (when needed). The default\n"
 "      is to use the smallest amount needed for the output.\n"
@@ -103,6 +106,9 @@ void usage( ) {
 "      sleep-write loop (without reads during the loop). See below for an \n"
 "      example.\n"
 "\n"
+"  --overwrite=intval, -O intval\n"
+"      overwrite the buffer several times with the new data. Default is 0.\n"
+"\n"
 "  --verbose, -v\n"
 "      print some information during startup and operation.\n"
 "\n"
@@ -114,10 +120,12 @@ void usage( ) {
 "\n"
 "  EXAMPLES\n"
 "\n"
-"  Sending audio data (192/32 format) from a filter program to a remote \n"
-"  machine, using a small buffer and smallest possible input chunks:\n"
+"  Sending stereo audio data (192/32 format) from a filter program to a remote \n"
+"  machine, using a small buffer and smallest possible input chunks (here\n"
+"  32 bit means 4 byte per channel and sample, so we have 2x4x192000 = 1536000\n"
+"  bytes of audio data per second):\n"
 "\n"
-"  ...(filter)... | chrt -r 99 bufhrt --port 5888 \\\n"
+"  ...(filter)... | chrt -r 99 bufhrt --port-to-write 5888 \\\n"
 "                    --bytes-per-second=1536000 --loops-per-second=2000 \\\n"
 "                    --buffer-size=8096 \n"
 "\n"
@@ -125,7 +133,7 @@ void usage( ) {
 "\n"
 "  chrt -r 99 bufhrt --host-to-read=myserver --port-to-read=5888 \\\n"
 "               --buffer-size=20000 --bytes-per-second=1536000 \\\n"
-"               --loops-per-second=2000 --port=5999\n"
+"               --loops-per-second=2000 --port-to-write=5999\n"
 "\n"
 "  We use interval mode to copy music files to a hard disk. (Yes, different\n"
 "  copies of a music file on the same disk can sound differently . . .):\n"
@@ -153,6 +161,8 @@ int main(int argc, char *argv[])
 
     /* read command line options */
     static struct option longoptions[] = {
+        {"port-to-write", required_argument,       0,  'p' },
+        /* for backward compatibility */
         {"port", required_argument,       0,  'p' },
         {"outfile", required_argument, 0, 'o' },
         {"buffer-size", required_argument,       0,  'b' },
@@ -206,7 +216,7 @@ int main(int argc, char *argv[])
         case 'o':
           outfile = optarg;
           if ((connfd = open(outfile, O_WRONLY | O_CREAT, 00644)) == -1) {
-              fprintf(stderr, "Cannot open output file %s.\n   %s\n", 
+              fprintf(stderr, "Cannot open output file %s.\n   %s\n",
                                outfile, strerror(errno));
               exit(3);
           }
@@ -294,7 +304,7 @@ int main(int argc, char *argv[])
           fprintf(stderr, "port %s.\n", port);
        else if (connfd == 1)
           fprintf(stderr, "stdout.\n");
-       else 
+       else
           fprintf(stderr, " file %s.\n", outfile);
        fprintf(stderr, "Input from ");
        if (ifd == 0)
@@ -312,7 +322,7 @@ int main(int argc, char *argv[])
     if (olen <= 0)
         olen = 1;
     if (interval) {
-        if (ilen == 0) 
+        if (ilen == 0)
             ilen = 16384;
     }
     else if (ilen < olen) {
@@ -385,7 +395,7 @@ int main(int argc, char *argv[])
             exit(12);
         }
     }
-    
+
     /* interval mode */
     if (interval) {
        count = 0;
@@ -419,7 +429,7 @@ int main(int argc, char *argv[])
                 mtime.tv_nsec -= 1000000000;
                 mtime.tv_sec++;
               }
-              while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, 
+              while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME,
                                                                  &mtime, NULL)
                      != 0) ;
               /* write a chunk, this comes first after waking from sleep */
@@ -450,7 +460,7 @@ int main(int argc, char *argv[])
               memcpy(wbuf, optr, wnext);
               memcpy(wbuf2, wbuf, wnext);
               /* not sure if this improves performance */
-              for (s = 0; s < overwrite; s++) 
+              for (s = 0; s < overwrite; s++)
                   memcpy(wbuf2, wbuf, wnext);
           }
        }
@@ -576,7 +586,7 @@ int main(int argc, char *argv[])
         memcpy(wbuf2, optr, wnext);
         memcpy(wbuf, wbuf2, wnext);
         /* not sure if this improves performance */
-        for (s = 0; s < overwrite; s++) 
+        for (s = 0; s < overwrite; s++)
             memcpy(wbuf, wbuf2, wnext);
     }
     close(connfd);
