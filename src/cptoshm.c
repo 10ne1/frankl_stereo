@@ -42,7 +42,7 @@ void usage( ) {
 "    By convention this name should start with a slash (/).\n"
 "\n"
 "--buffer-size=intval, -b intval\n"
-"    the internal buffer size in bytes (the default is about 4 MB).\n"
+"    the internal buffer size in bytes. The default is about 4 MB.\n"
 "\n"
 "--max-input=intval, -m intval\n"
 "    this is the maximal number of bytes read from the input file.\n"
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
             *iptr = 0;
     }
     if (verbose)
-        fprintf(stderr, "done\n");
+        fprintf(stderr, "cptoshm: done\n");
     /* copy data */
     ptr = mem;
     done = 0;
