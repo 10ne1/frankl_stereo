@@ -299,14 +299,14 @@ int main(int argc, char *argv[])
        ifd = fd_net(inhost, inport);
     }
     if (verbose) {
-       fprintf(stderr, "Writing %ld bytes per second to ", outpersec);
+       fprintf(stderr, "bufhrt: Writing %ld bytes per second to ", outpersec);
        if (port != NULL)
           fprintf(stderr, "port %s.\n", port);
        else if (connfd == 1)
           fprintf(stderr, "stdout.\n");
        else
           fprintf(stderr, " file %s.\n", outfile);
-       fprintf(stderr, "Input from ");
+       fprintf(stderr, "bufhrt: Input from ");
        if (ifd == 0)
           fprintf(stderr, "stdin");
        else if (inhost != NULL)
@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
         else
             ilen = olen + 1;
         if (verbose) {
-           fprintf(stderr, "Choosing %ld as length of input chunks.\n", ilen);
+           fprintf(stderr, "bufhrt: Choosing %ld as length of input chunks.\n", ilen);
            fflush(stderr);
         }
     }
@@ -470,7 +470,7 @@ int main(int argc, char *argv[])
        close(listenfd);
        close(ifd);
        if (verbose)
-           fprintf(stderr, "Intervals: %ld, total bytes: %lld in %lld out.\n",
+           fprintf(stderr, "bufhrt: Intervals: %ld, total bytes: %lld in %lld out.\n",
                             count, icount, ocount);
        exit(0);
     }
@@ -499,10 +499,10 @@ int main(int argc, char *argv[])
         exit(14);
     }
     if (verbose) {
-        fprintf(stderr, "Starting at %ld sec %ld nsec \n",
+        fprintf(stderr, "bufhrt: Starting at %ld sec %ld nsec \n",
                                            mtime.tv_sec, mtime.tv_nsec);
         fprintf(stderr,
-                "   insize %ld, outsize %ld, buflen %ld, interval %ld nsec\n",
+                "bufhrt:    insize %ld, outsize %ld, buflen %ld, interval %ld nsec\n",
                                      ilen, olen, blen+ilen+2*olen, nsec);
     }
 
@@ -594,8 +594,8 @@ int main(int argc, char *argv[])
     close(listenfd);
     close(ifd);
     if (verbose)
-        fprintf(stderr, "Loops: %ld, total bytes: %lld in %lld out.\n"
-                        "Bad reads/bytes %ld/%ld and writes/bytes %ld/%ld.\n",
+        fprintf(stderr, "bufhrt: Loops: %ld, total bytes: %lld in %lld out.\n"
+                        "bufhrt: Bad reads/bytes %ld/%ld and writes/bytes %ld/%ld.\n",
                         count, icount, ocount, badreads, badreadbytes,
                         badwrites, badwritebytes);
     return 0;

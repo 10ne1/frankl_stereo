@@ -362,7 +362,7 @@ int main(int argc, char *argv[])
     extraerr = extraerr/(extraerr+extrabps);
     nsec = (int) (1000000000*extraerr/loopspersec);
     if (verbose) {
-        fprintf(stderr, "Step size is %ld nsec.\n", nsec);
+        fprintf(stderr, "playhrt: Step size is %ld nsec.\n", nsec);
     }
     /* olen in frames written per loop */
     olen = rate/loopspersec;
@@ -374,7 +374,7 @@ int main(int argc, char *argv[])
         else
             ilen = bytesperframe * (olen+1);
         if (verbose)
-            fprintf(stderr, "Setting input chunk size to %ld bytes.\n", ilen);
+            fprintf(stderr, "playhrt: Setting input chunk size to %ld bytes.\n", ilen);
     }
     /* need big enough input buffer */
     if (blen < 3*ilen) {
@@ -400,7 +400,7 @@ int main(int argc, char *argv[])
         exit(2);
     }
     if (verbose) {
-        fprintf(stderr, "Input buffer size is %ld bytes.\n",
+        fprintf(stderr, "playhrt: Input buffer size is %ld bytes.\n",
                 blen+ilen+(olen+extra)*bytesperframe);
     }
     /* we put some overlap before the reference pointer */
@@ -435,7 +435,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Cannot set non-block mode.\n");
             exit(6);
         } else if (verbose) {
-            fprintf(stderr, "Accessing card in non-block mode.\n");
+            fprintf(stderr, "playhrt: Accessing card in non-block mode.\n");
         }
     }
     if (snd_pcm_hw_params_any(pcm_handle, hwparams) < 0) {
@@ -465,7 +465,7 @@ int main(int argc, char *argv[])
           exit(11);
       }
       if (verbose) {
-          fprintf(stderr, "Setting period size explicitly to %ld frames.",
+          fprintf(stderr, "playhrt: Setting period size explicitly to %ld frames.",
                           periodsize);
       }
     }
@@ -474,7 +474,7 @@ int main(int argc, char *argv[])
         snd_pcm_hw_params_set_buffer_size_minmax(pcm_handle, hwparams,
                                                                 &min, &max);
         fprintf(stderr,
-                "Min and max buffer size of device %ld .. %ld - ", min, max);
+                "playhrt: Min and max buffer size of device %ld .. %ld - ", min, max);
     }
     if (snd_pcm_hw_params_set_buffer_size(pcm_handle, hwparams,
                                                       hwbufsize) < 0) {
@@ -540,8 +540,8 @@ int main(int argc, char *argv[])
         exit(19);
     }
     if (verbose)
-       fprintf(stderr,
-               "Start time (%ld sec %ld nsec)\n", mtime.tv_sec, mtime.tv_nsec);
+       fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec)\n", 
+                       mtime.tv_sec, mtime.tv_nsec);
     memcpy(wbuf, optr, wnext*bytesperframe);
     for (count=1, off=looperr; 1; count++, off+=looperr) {
         /* compute time for next wakeup */
@@ -569,7 +569,7 @@ int main(int argc, char *argv[])
             }
             clock_gettime(CLOCK_MONOTONIC, &mtime);
             if (verbose)
-               fprintf(stderr, "bad write at (%ld sec %ld nsec)\n",
+               fprintf(stderr, "playhrt: bad write at (%ld sec %ld nsec)\n",
                        mtime.tv_sec, mtime.tv_nsec);
 #ifdef ALSANC
             s = snd_pcm_writei_nc(pcm_handle, wbuf, wnext);
@@ -591,7 +591,7 @@ int main(int argc, char *argv[])
         }
         if (wnext >= olen+extra) {
            if (verbose)
-              fprintf(stderr, "Underrun by %ld bytes at (%ld sec %ld nsec).\n",
+              fprintf(stderr, "playhrt: Underrun by %ld bytes at (%ld sec %ld nsec).\n",
                       wnext - olen - extra, mtime.tv_sec, mtime.tv_nsec);
            wnext = olen+extra-1;
         }
@@ -646,15 +646,15 @@ int main(int argc, char *argv[])
     /* mmap access */
     /* why does start threshold not work ??? */
    if (verbose)
-       fprintf(stderr, "Using mmap access.\n");
+       fprintf(stderr, "playhrt: Using mmap access.\n");
    startcount = hwbufsize/(2*olen);
    if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
         fprintf(stderr, "Cannot get monotonic clock.\n");
         exit(19);
     }
     if (verbose)
-       fprintf(stderr,
-               "Start time (%ld sec %ld nsec)\n", mtime.tv_sec, mtime.tv_nsec);
+       fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec)\n", 
+                       mtime.tv_sec, mtime.tv_nsec);
     for (count=1, off=looperr; 1; count++, off+=looperr) {
         if (count == startcount)  snd_pcm_start(pcm_handle);
         /* compute time for next wakeup */
@@ -667,11 +667,11 @@ int main(int argc, char *argv[])
         if (verbose) {
           if (5*avail < hwbufsize && count > startcount)
               fprintf(stderr,
-                      "available mmap buffer small: %ld (at %ld s %ld ns)\n",
+                      "playhrt: available mmap buffer small: %ld (at %ld s %ld ns)\n",
                       avail, mtime.tv_sec, mtime.tv_nsec);
           if (5*avail > 4*hwbufsize && count > startcount)
               fprintf(stderr,
-                      "available mmap buffer large: %ld (at %ld s %ld ns)\n",
+                      "playhrt: available mmap buffer large: %ld (at %ld s %ld ns)\n",
                       avail, mtime.tv_sec, mtime.tv_nsec);
         }
         frames = olen;
@@ -724,7 +724,7 @@ int main(int argc, char *argv[])
     snd_pcm_drain(pcm_handle);
     snd_pcm_close(pcm_handle);
     if (verbose) {
-        fprintf(stderr, "Loops: %ld, total bytes: %lld in %lld out. \n      Bad loops/frames written: %ld/%lld,  bad reads/bytes: %ld/%ld\n",
+        fprintf(stderr, "playhrt: Loops: %ld, total bytes: %lld in %lld out. \n      Bad loops/frames written: %ld/%lld,  bad reads/bytes: %ld/%ld\n",
                     count, icount, ocount, badloops, badframes, badreads, readmissing);
     }
     return 0;
