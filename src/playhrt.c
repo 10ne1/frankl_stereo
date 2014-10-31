@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
     snd_pcm_sw_params_t *swparams;
     snd_pcm_format_t format;
     char *host, *port, *pcm_name;
-    int optc, nonblock, rate, bytesperframe;
+    int optc, nonblock, rate, bytespersample, bytesperframe;
     snd_pcm_uframes_t hwbufsize, periodsize, offset, frames;
     snd_pcm_access_t access;
     snd_pcm_sframes_t avail;
@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
     loopspersec = 1000;
     rate = 44100;
     format = SND_PCM_FORMAT_S16_LE;
-    bytesperframe = 4;
+    bytespersample = 2;
     hwbufsize = 16384;
     periodsize = 0;
     /* nr of frames that wnext can be larger than olen */
@@ -292,16 +292,16 @@ int main(int argc, char *argv[])
         case 'f':
           if (strcmp(optarg, "S16_LE")==0) {
              format = SND_PCM_FORMAT_S16_LE;
-             bytesperframe = 4;
+             bytespersample = 2;
           } else if (strcmp(optarg, "S24_LE")==0) {
              format = SND_PCM_FORMAT_S24_LE;
-             bytesperframe = 8;
+             bytespersample = 4;
           } else if (strcmp(optarg, "S24_3LE")==0) {
              format = SND_PCM_FORMAT_S24_3LE;
-             bytesperframe = 6;
+             bytespersample = 3;
           } else if (strcmp(optarg, "S32_LE")==0) {
              format = SND_PCM_FORMAT_S32_LE;
-             bytesperframe = 8;
+             bytespersample = 4;
           } else {
              fprintf(stderr, "Sample format %s not recognized.\n", optarg);
              exit(1);
@@ -351,6 +351,7 @@ int main(int argc, char *argv[])
           exit(2);
         }
     }
+    bytesperframe = bytespersample*nrchannels;
     /* check some arguments and set some parameters */
     if ((host == NULL || port == NULL) && sfd < 0) {
        fprintf(stderr, "Must give --host and --port or --stdin.\n");
