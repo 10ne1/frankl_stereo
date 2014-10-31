@@ -465,7 +465,7 @@ int main(int argc, char *argv[])
           exit(11);
       }
       if (verbose) {
-          fprintf(stderr, "playhrt: Setting period size explicitly to %ld frames.",
+          fprintf(stderr, "playhrt: Setting period size explicitly to %ld frames.\n",
                           periodsize);
       }
     }
