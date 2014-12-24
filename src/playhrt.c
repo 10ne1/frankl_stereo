@@ -27,6 +27,13 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 */
 void usage( ) {
   fprintf(stderr,
+          "playhrt (version %s of frankl's stereo utilities",
+          VERSION);
+#ifdef ALSANC
+  fprintf(stderr, ", with alsa-lib patch");
+#endif
+  fprintf(stderr, ")\nUSAGE:\n");
+  fprintf(stderr,
 "\n"
 "  playhrt [options] \n"
 "\n"
@@ -134,6 +141,8 @@ void usage( ) {
 "  --period-size=intval -P intval\n"
 "      the period size is the chunk size (number of frames) read by the\n"
 "      sound device. The default is chosen by the hardware driver.\n"
+"      Use only for final tuning (or not at all), this option can cause\n"
+"      strange behaviour.\n"
 "\n"
 "  --extra-bytes-per-second=floatval, -e floatval\n"
 "      usually the number of bytes per second that need to written\n"
