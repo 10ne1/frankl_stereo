@@ -708,12 +708,15 @@ int main(int argc, char *argv[])
              *uptr++ = 4294967295u;
         for (s = 0, uptr=(uint*)iptr; s < ilen/sizeof(uint); s++)
              *uptr++ = 0;
-        /* read into buffer such that writing into mmap region after
-           sleep is faster */
-        s = read(sfd, buf, ilen);
+        /* we have first tried the following sequence: 
+              s = read(sfd, buf, ilen);
+              clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
+              memcpy((void*)iptr, (void*)buf, s);
+              snd_pcm_mmap_commit(pcm_handle, offset, frames);
+           but a direct read without buffer buf and an immediate commit 
+           after sleep seems better */
+        s = read(sfd, iptr, ilen);
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
-        /* instead of direct   s = read(sfd, iptr, ilen);   */
-        memcpy((void*)iptr, (void*)buf, s);
         snd_pcm_mmap_commit(pcm_handle, offset, frames);
         if (s < 0) {
             fprintf(stderr, "Read error.\n");
