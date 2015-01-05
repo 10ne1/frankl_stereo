@@ -21,6 +21,8 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 #include <time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/mman.h>
+#include <semaphore.h>
 
 /* help page */
 /* vim hint to remove resp. add quotes:
@@ -30,7 +32,7 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 void usage( ) {
   fprintf(stderr,
 "\n"
-"  bufhrt [options] \n"
+"  bufhrt [options] [--shared <snam1> <snam2> [...]]\n"
 "\n"
 "  This program reads data from stdin, a file or a network connection and\n"
 "  writes it to stdout, a file or the network in precisely timed chunks.\n"
@@ -88,6 +90,16 @@ void usage( ) {
 "\n"
 "  --stdin, -S\n"
 "      read data from stdin. This is the default.\n"
+"\n"
+"  --shared <snam1> <snam2> ...\n"
+"      input is read from shared memory. The names <snam1>, ..., of the memory \n"
+"      chunks must be specified after all other options. This option can be used\n"
+"      together with 'writeloop' which writes the data to the memory chunks (see\n"
+"      documentation of 'writeloop'). For transfering music data this option may\n"
+"      lead to better sound quality than using 'catloop' and a pipe to 'bufhrt'\n"
+"      with --stdin input. We have made good experience with using three shared\n"
+"      memory chunks whose combined length is a bit smaller than the CPUs \n"
+"      L1-cache.\n"
 "\n"
 "  --input-size=intval, -i intval\n"
 "      the number of bytes to be read per loop (when needed). The default\n"
@@ -149,7 +161,7 @@ int main(int argc, char *argv[])
 {
     struct sockaddr_in serv_addr;
     int listenfd, connfd, ifd, s, moreinput, optval=1, verbose, rate,
-        extrabps, bytesperframe, optc, interval, overwrite;
+        extrabps, bytesperframe, optc, interval, overwrite, shared;
     uint *uptr;
     long blen, hlen, ilen, olen, outpersec, loopspersec, nsec, count, wnext,
          badreads, badreadbytes, badwrites, badwritebytes, lcount;
@@ -158,6 +170,12 @@ int main(int argc, char *argv[])
     char *port, *inhost, *inport, *outfile, *infile;
     struct timespec mtime;
     double looperr, extraerr, off;
+    /* variables for shared memory input */
+    char **fname, *fnames[100], **tmpname, *tmpnames[100], **mem, *mems[100],
+         *ptr;
+    sem_t **sem, *sems[100], **semw, *semsw[100];
+    int fd[100], i, flen, size, c, sz;
+    struct stat sb;
 
     /* read command line options */
     static struct option longoptions[] = {
@@ -174,6 +192,7 @@ int main(int argc, char *argv[])
         {"file", required_argument, 0, 'F' },
         {"host-to-read", required_argument, 0, 'H' },
         {"port-to-read", required_argument, 0, 'P' },
+        {"shared", no_argument, 0, 'S' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
         {"overwrite", required_argument, 0, 'O' },
         {"interval", no_argument, 0, 'I' },
@@ -203,6 +222,7 @@ int main(int argc, char *argv[])
     inhost = NULL;
     inport = NULL;
     infile = NULL;
+    shared = 0;
     overwrite = 0;
     interval = 0;
     extrabps = 0;
@@ -263,6 +283,9 @@ int main(int argc, char *argv[])
         case 'P':
           inport = optarg;
           break;
+        case 'S':
+          shared = 1;
+          break;
         case 'e':
           extrabps = atof(optarg);
           break;
@@ -307,7 +330,9 @@ int main(int argc, char *argv[])
        else
           fprintf(stderr, " file %s.\n", outfile);
        fprintf(stderr, "bufhrt: Input from ");
-       if (ifd == 0)
+       if (shared)
+          fprintf(stderr, "shared memory");
+       else if (ifd == 0)
           fprintf(stderr, "stdin");
        else if (inhost != NULL)
           fprintf (stderr, "host %s (port %s)", inhost, inport);
@@ -394,6 +419,148 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Cannot accept outgoing connection.\n");
             exit(12);
         }
+    }
+    /* shared memory input */
+    if (shared) {
+      size = 0;
+      badwrites = 0;
+      badwritebytes = 0;
+      /* prepare shared memory */
+      for (i=optind; i < argc; i++) {
+         if (i>100) {
+            fprintf(stderr, "Too many filenames.");
+            exit(6);
+         }
+         fnames[i-optind] = argv[i];
+         if (shared) {
+             /* open semaphore with same name as memory */
+             if ((sems[i-optind] = sem_open(fnames[i-optind], O_RDWR))
+                                                          == SEM_FAILED) {
+                 fprintf(stderr, "Cannot open semaphore.");
+                 exit(20);
+             }
+             /* also semaphore for write lock */
+             tmpnames[i-optind] = (char*)malloc(strlen(argv[i])+5);
+             strncpy(tmpnames[i-optind], fnames[i-optind], strlen(argv[i]));
+             strncat(tmpnames[i-optind], ".TMP", 4);
+             if ((semsw[i-optind] = sem_open(tmpnames[i-optind], O_RDWR))
+                                                           == SEM_FAILED) {
+                 fprintf(stderr, "Cannot open write semaphore.");
+                 exit(21);
+             }
+             /* open shared memory */
+             if ((fd[i-optind] = shm_open(fnames[i-optind],
+                                 O_RDONLY, S_IRUSR | S_IWUSR)) == -1){
+                 fprintf(stderr, "Cannot open shared memory %s.\n", fnames[i-optind]);
+                 exit(22);
+             }
+             if (size == 0) { /* find size of shared memory chunks */
+                 if (fstat(fd[i-optind], &sb) == -1) {
+                     fprintf(stderr, "Cannot stat shared memory %s.\n", fnames[i-optind]);
+                     exit(24);
+                 }
+                 size = sb.st_size - sizeof(int);
+             }
+             /* map the memory */
+             mems[i-optind] = mmap(NULL, sizeof(int)+size,
+                             PROT_READ, MAP_SHARED, fd[i-optind], 0);
+             if (mems[i-optind] == MAP_FAILED) {
+                 fprintf(stderr, "Cannot map shared memory.");
+                 exit(24);
+             }
+         }
+      }
+      fnames[argc-optind] = NULL;
+      fname = fnames;
+      tmpname = tmpnames;
+      mem = mems;
+      sem = sems;
+      semw = semsw;
+      clock_gettime(CLOCK_MONOTONIC, &mtime);
+      lcount = 0;
+      off = looperr;
+      while (1) {
+         if (*fname == NULL) {
+            fname = fnames;
+            tmpname = tmpnames;
+            mem = mems;
+            sem = sems;
+            semw = semsw;
+         }
+         /* get lock */
+         sem_wait(*sem);
+         /* find length of relevant memory chunk */
+         flen = *((int*)(*mem));
+         icount += flen;
+         if (flen == 0) {
+             /* done, unlink semaphores and shared memory */
+             fname = fnames;
+             tmpname = tmpnames;
+             while (*fname != NULL) {
+                 shm_unlink(*fname);
+                 sem_unlink(*fname);
+                 sem_unlink(*tmpname);
+                 fname++;
+                 tmpname++;
+             }
+             exit(0);
+         }
+         /* write shared memory content to output */
+         ptr = *mem + sizeof(int);
+         sz = 0;
+         while (sz < flen) {
+             mtime.tv_nsec += nsec;
+             if (mtime.tv_nsec > 999999999) {
+               mtime.tv_nsec -= 1000000000;
+               mtime.tv_sec++;
+             }
+             if (flen - sz <= olen) {
+                 c = flen - sz;
+                 off += (olen-c);
+             } else {
+                 c = olen;
+                 if (off >= 1.0) {
+                    off -= 1.0;
+                    c++;
+                 }
+             }
+             while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME,
+                                                                &mtime, NULL)
+                    != 0) ;
+             /* write a chunk, this comes first after waking from sleep */
+             s = write(connfd, ptr, c);
+             if (s < 0) {
+                 fprintf(stderr, "bufhrt (from shared): Write error.\n");
+                 exit(15);
+             }
+             if (s < c) {
+                 badwrites++;
+                 badwritebytes += (c-s);
+                 off += (c-s);
+                 fprintf(stderr, "*%ld", (long)(c-s)); fflush(stderr);
+             }
+             ocount += c;
+             ptr += c;
+             sz += c;
+             lcount++;
+             off += looperr;
+         }
+         /* mark as writable */
+         sem_post(*semw);
+         fname++;
+         tmpname++;
+         mem++;
+         sem++;
+         semw++;
+      }
+      close(connfd);
+      shutdown(listenfd, SHUT_RDWR);
+      close(listenfd);
+      if (verbose)
+        fprintf(stderr, "bufhrt: Loops: %ld, total bytes: %lld in (shared mem) %lld out.\n"
+                        "bufhrt: bad writes: %ld (%ld bytes)\n",
+                        lcount, icount, ocount, badwrites, badwritebytes);
+      return 0;
     }
 
     /* interval mode */

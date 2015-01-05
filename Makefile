@@ -36,7 +36,7 @@ bin/playhrt_static: src/version.h tmp/net.o src/playhrt.c
 	$(CC) $(CFLAGSNO) -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt_static src/playhrt.c tmp/net.o -lasound -lrt -lpthread -lm -ldl -static
 
 bin/bufhrt: src/version.h tmp/net.o src/bufhrt.c
-	$(CC) $(CFLAGSNO) -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -lrt
+	$(CC) $(CFLAGSNO) -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -lpthread -lrt
 
 bin/highrestest: src/highrestest.c
 	$(CC) $(CFLAGSNO) -o bin/highrestest src/highrestest.c -lrt
@@ -58,7 +58,7 @@ bin86:
 	make veryclean
 	make
 	cc -O2 -Wall -o bin/volrace src/volrace.c -static
-	cc -O0 -Wall -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -static -lrt 
+	cc -O0 -Wall -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -static -lpthread -lrt 
 	cc -O0 -Wall -o bin/highrestest src/highrestest.c -static -lrt
 	cc -O2 -Wall -o bin/writeloop src/writeloop.c -static -lpthread -lrt
 	cc -O2 -Wall -o bin/catloop src/catloop.c -static -lpthread -lrt
@@ -72,7 +72,7 @@ binPi:
 	make veryclean
 	make
 	cc -O2 -Wall -o bin/volrace src/volrace.c -static
-	cc -O0 -Wall -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -static  
+	cc -O0 -Wall -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -static -lpthread 
 	cc -O0 -Wall -o bin/highrestest src/highrestest.c -static 
 	cc -O2 -Wall -o bin/writeloop src/writeloop.c -static -lpthread -lrt
 	cc -O2 -Wall -o bin/catloop src/catloop.c -static -lpthread -lrt
