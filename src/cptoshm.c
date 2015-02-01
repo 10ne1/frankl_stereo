@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include "cprefresh.h"
 
 /* help page */
 /* vim hint to remove resp. add quotes:
@@ -49,10 +50,6 @@ void usage( ) {
 "    If input is a file the default is the length of that file.\n"
 "    If input is stdin then this  option must be given.\n"
 "\n"
-"--overwrite=intval, -O intval\n"
-"    the number of times the buffer is cleared by overwriting with\n"
-"    certain bit patterns and zeroes. Default is 0.\n"
-"\n"
 "--verbose, -v\n"
 "    print some information during startup and operation.\n"
 "\n"
@@ -79,8 +76,7 @@ void usage( ) {
 int main(int argc, char *argv[])
 {
     char *infile, *memname;
-    int ifd, fd, i, bufsize, optc, overwrite, verbose;
-    unsigned int *iptr;
+    int ifd, fd, bufsize, optc, verbose;
     size_t length, done, rlen;
     struct stat sb;
     char *buf, *mem, *ptr;
@@ -91,7 +87,7 @@ int main(int argc, char *argv[])
         {"shmname", required_argument, 0, 'o' },
         {"buffer-size", required_argument, 0,  'b' },
         {"max-input", required_argument, 0, 'm' },
-        {"overwrite", required_argument, 0, 'O' },
+        {"overwrite", required_argument, 0, 'O' }, /* ignored */
         {"verbose", no_argument, 0, 'v' },
         {"version", no_argument, 0, 'V' },
         {"help", no_argument, 0, 'h' },
@@ -105,8 +101,8 @@ int main(int argc, char *argv[])
     /* defaults */
     bufsize = 4194304;
     ifd = 0; /* stdin */
+    fd = -1;
     length = 0;
-    overwrite = 1;
     verbose = 0;
     infile = NULL;
     while ((optc = getopt_long(argc, argv, "i:o:b:m:O:vVh",
@@ -141,7 +137,6 @@ int main(int argc, char *argv[])
           length = atoi(optarg);
           break;
         case 'O':
-          overwrite = atoi(optarg);
           break;
         case 'v':
           verbose = 1;
@@ -183,37 +178,20 @@ int main(int argc, char *argv[])
         fprintf(stderr, "cptoshm: clearing memory ... "); 
         fflush(stderr);
     }
-    for (done = 0, iptr = (unsigned int*) mem; 
-                   done < length/sizeof(int); iptr++, done++)
-        *iptr = 2863311530u;  
-    for (done = 0, iptr = (unsigned int*) mem; 
-                   done < length/sizeof(int); iptr++, done++)
-        *iptr = 4294967295u;
-    i=overwrite;
-    while (i--) {
-        for (done = 0, iptr = (unsigned int*) mem; 
-                       done < length/sizeof(int); iptr++, done++)
-            *iptr = 0;
-    }
+    memclean(mem, length);
     if (verbose)
         fprintf(stderr, "cptoshm: done\n");
     /* copy data */
     ptr = mem;
     done = 0;
     while (done < length) {
+        memclean(buf, bufsize);
         rlen = read(ifd, buf, bufsize);
         rlen = (done+rlen > length)? length-done:rlen;
         if (rlen == 0) break;
-        /* memcpy(ptr, buf, rlen);  */
-        {
-           int count=1, *ip, *op, tlen;
-           while (count--) {
-              for (ip = (int*)buf, op = (int*)ptr, tlen = 0;
-                         tlen < rlen/sizeof(int); tlen++, ip++, op++)
-                  *op = *ip;
-              memcpy( (void*)op, (void*)ip, rlen-tlen*sizeof(int));
-           }
-        }
+        memclean(ptr, rlen);
+        memcpy(ptr, buf, rlen);
+        refreshmem(ptr, rlen);
         done += rlen;
         ptr += rlen;
     }

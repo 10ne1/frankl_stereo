@@ -1,5 +1,5 @@
 /*
-bufhrt.c                Copyright frankl 2013-2014
+bufhrt.c                Copyright frankl 2013-2015
 
 This file is part of frankl's stereo utilities.
 See the file License.txt of the distribution and
@@ -23,6 +23,7 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <semaphore.h>
+#include "cprefresh.h"
 
 /* help page */
 /* vim hint to remove resp. add quotes:
@@ -118,9 +119,6 @@ void usage( ) {
 "      sleep-write loop (without reads during the loop). See below for an \n"
 "      example.\n"
 "\n"
-"  --overwrite=intval, -O intval\n"
-"      overwrite the buffer several times with the new data. Default is 0.\n"
-"\n"
 "  --verbose, -v\n"
 "      print some information during startup and operation.\n"
 "\n"
@@ -161,12 +159,11 @@ int main(int argc, char *argv[])
 {
     struct sockaddr_in serv_addr;
     int listenfd, connfd, ifd, s, moreinput, optval=1, verbose, rate,
-        extrabps, bytesperframe, optc, interval, overwrite, shared;
-    uint *uptr;
+        extrabps, bytesperframe, optc, interval, shared;
     long blen, hlen, ilen, olen, outpersec, loopspersec, nsec, count, wnext,
          badreads, badreadbytes, badwrites, badwritebytes, lcount;
     long long icount, ocount;
-    void *buf, *wbuf, *wbuf2, *iptr, *optr, *max;
+    void *buf, *iptr, *optr, *max;
     char *port, *inhost, *inport, *outfile, *infile;
     struct timespec mtime;
     double looperr, extraerr, off;
@@ -194,7 +191,7 @@ int main(int argc, char *argv[])
         {"port-to-read", required_argument, 0, 'P' },
         {"shared", no_argument, 0, 'S' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
-        {"overwrite", required_argument, 0, 'O' },
+        {"overwrite", required_argument, 0, 'O' }, /* not used, ignored */
         {"interval", no_argument, 0, 'I' },
         {"verbose", no_argument, 0, 'v' },
         {"version", no_argument, 0, 'V' },
@@ -223,7 +220,6 @@ int main(int argc, char *argv[])
     inport = NULL;
     infile = NULL;
     shared = 0;
-    overwrite = 0;
     interval = 0;
     extrabps = 0;
     verbose = 0;
@@ -290,8 +286,7 @@ int main(int argc, char *argv[])
           extrabps = atof(optarg);
           break;
         case 'O':
-          overwrite = atoi(optarg);
-          break;
+          break;   /* ignored */
         case 'I':
           interval = 1;
           break;
@@ -372,25 +367,17 @@ int main(int argc, char *argv[])
     icount = 0;
     ocount = 0;
 
-    if (! (buf = malloc(blen+ilen+2*olen)) ) {
+    /* we want buf % 8 = 0 */
+    if (! (buf = malloc(blen+ilen+2*olen+8)) ) {
         fprintf(stderr, "Cannot allocate buffer of length %ld.\n",
                 blen+ilen+olen);
         exit(6);
     }
+    while (((uint)buf % 8) != 0) buf++;
     buf = buf + 2*olen;
     max = buf + blen;
     iptr = buf;
     optr = buf;
-    if (! (wbuf = malloc(2*olen)) ) {
-        fprintf(stderr, "Cannot allocate buffer of length %ld.\n",
-                blen+ilen+olen);
-        exit(7);
-    }
-    if (! (wbuf2 = malloc(2*olen)) ) {
-        fprintf(stderr, "Cannot allocate another buffer of length %ld.\n",
-                blen+ilen+olen);
-        exit(8);
-    }
 
     /* outgoing socket */
     if (port != 0) {
@@ -450,7 +437,7 @@ int main(int argc, char *argv[])
              }
              /* open shared memory */
              if ((fd[i-optind] = shm_open(fnames[i-optind],
-                                 O_RDONLY, S_IRUSR | S_IWUSR)) == -1){
+                                 O_RDWR, S_IRUSR | S_IWUSR)) == -1){
                  fprintf(stderr, "Cannot open shared memory %s.\n", fnames[i-optind]);
                  exit(22);
              }
@@ -461,9 +448,9 @@ int main(int argc, char *argv[])
                  }
                  size = sb.st_size - sizeof(int);
              }
-             /* map the memory */
+             /* map the memory (will be on page boundary, so 0 mod 8) */
              mems[i-optind] = mmap(NULL, sizeof(int)+size,
-                             PROT_READ, MAP_SHARED, fd[i-optind], 0);
+                             PROT_WRITE | PROT_READ, MAP_SHARED, fd[i-optind], 0);
              if (mems[i-optind] == MAP_FAILED) {
                  fprintf(stderr, "Cannot map shared memory.");
                  exit(24);
@@ -479,7 +466,9 @@ int main(int argc, char *argv[])
       clock_gettime(CLOCK_MONOTONIC, &mtime);
       lcount = 0;
       off = looperr;
+      i = 0; /* counter to update mtime */
       while (1) {
+         i++;
          if (*fname == NULL) {
             fname = fnames;
             tmpname = tmpnames;
@@ -508,6 +497,8 @@ int main(int argc, char *argv[])
          /* write shared memory content to output */
          ptr = *mem + sizeof(int);
          sz = 0;
+         if (i == 100)
+           clock_gettime(CLOCK_MONOTONIC, &mtime);
          while (sz < flen) {
              mtime.tv_nsec += nsec;
              if (mtime.tv_nsec > 999999999) {
@@ -524,6 +515,9 @@ int main(int argc, char *argv[])
                     c++;
                  }
              }
+             refreshmem((char*)ptr, c);
+             refreshmem((char*)ptr, c);
+             refreshmem((char*)ptr, c);
              while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME,
                                                                 &mtime, NULL)
                     != 0) ;
@@ -569,6 +563,7 @@ int main(int argc, char *argv[])
        while (moreinput) {
           count++;
           /* fill buffer */
+          memclean(buf, 2*hlen);
           for (iptr = buf; iptr < buf + 2*hlen - ilen; ) {
               s = read(ifd, iptr, ilen);
               if (s < 0) {
@@ -586,21 +581,23 @@ int main(int argc, char *argv[])
           /* write out */
           optr = buf;
           wnext = olen;
-          memcpy(wbuf, optr, wnext);
           clock_gettime(CLOCK_MONOTONIC, &mtime);
           for (lcount=0, off=looperr; optr < iptr; lcount++, off+=looperr) {
               /* once cache is filled and other side is reading we reset time */
-              /*if (lcount == 50) clock_gettime(CLOCK_MONOTONIC, &mtime);*/
+              if (lcount == 50) clock_gettime(CLOCK_MONOTONIC, &mtime);
               mtime.tv_nsec += nsec;
               if (mtime.tv_nsec > 999999999) {
                 mtime.tv_nsec -= 1000000000;
                 mtime.tv_sec++;
               }
+              refreshmem((char*)optr, wnext);
+              refreshmem((char*)optr, wnext);
+              refreshmem((char*)optr, wnext);
               while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME,
                                                                  &mtime, NULL)
                      != 0) ;
               /* write a chunk, this comes first after waking from sleep */
-              s = write(connfd, wbuf, wnext);
+              s = write(connfd, optr, wnext);
               if (s < 0) {
                   fprintf(stderr, "Write error.\n");
                   exit(15);
@@ -621,14 +618,6 @@ int main(int argc, char *argv[])
               if (s <= wnext) {
                   wnext = s;
               }
-              /* copy data for next write */
-              /* data are always lying in same position (hopefully processor
-                 cache)   */
-              memcpy(wbuf, optr, wnext);
-              memcpy(wbuf2, wbuf, wnext);
-              /* not sure if this improves performance */
-              for (s = 0; s < overwrite; s++)
-                  memcpy(wbuf2, wbuf, wnext);
           }
        }
 
@@ -642,7 +631,9 @@ int main(int argc, char *argv[])
        exit(0);
     }
 
+    /* default mode, no shared memory input and no interval mode */
     /* fill at least half buffer */
+    memclean(buf, 2*hlen);
     for (; iptr < buf + 2*hlen - ilen; ) {
         s = read(ifd, iptr, ilen);
         if (s < 0) {
@@ -678,7 +669,6 @@ int main(int argc, char *argv[])
     badwrites = 0;
     badreadbytes = 0;
     badwritebytes = 0;
-    memcpy(wbuf, optr, wnext);
     for (count=1, off=looperr; 1; count++, off+=looperr) {
         /* once cache is filled and other side is reading we reset time */
         if (count == 500) clock_gettime(CLOCK_MONOTONIC, &mtime);
@@ -687,10 +677,13 @@ int main(int argc, char *argv[])
           mtime.tv_nsec -= 1000000000;
           mtime.tv_sec++;
         }
+        refreshmem((char*)optr, wnext);
+        refreshmem((char*)optr, wnext);
+        refreshmem((char*)optr, wnext);
         while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL)
                != 0) ;
         /* write a chunk, this comes first after waking from sleep */
-        s = write(connfd, wbuf, wnext);
+        s = write(connfd, optr, wnext);
         if (s < 0) {
             fprintf(stderr, "Write error.\n");
             exit(15);
@@ -720,6 +713,7 @@ int main(int argc, char *argv[])
         }
         /* read if buffer not half filled */
         if (moreinput && (iptr > optr ? iptr-optr : iptr+blen-optr) < hlen) {
+            memclean(iptr, ilen);
             s = read(ifd, iptr, ilen);
             if (s < 0) {
                 fprintf(stderr, "Read error.\n");
@@ -741,20 +735,6 @@ int main(int argc, char *argv[])
         }
         if (wnext == 0)
             break;    /* done */
-        /* copy data for next write */
-        /* data are always lying in same position (hopefully processor
-           cache)   */
-        for (s=0, uptr=(uint*)wbuf; s < wnext/sizeof(uint)+1; s++)
-             *uptr++ = 2863311530u;
-        for (s=0, uptr=(uint*)wbuf; s < wnext/sizeof(uint)+1; s++)
-             *uptr++ = 4294967295u;
-        for (s=0, uptr=(uint*)wbuf; s < wnext/sizeof(uint)+1; s++)
-             *uptr++ = 0;
-        memcpy(wbuf2, optr, wnext);
-        memcpy(wbuf, wbuf2, wnext);
-        /* not sure if this improves performance */
-        for (s = 0; s < overwrite; s++)
-            memcpy(wbuf, wbuf2, wnext);
     }
     close(connfd);
     shutdown(listenfd, SHUT_RDWR);
@@ -767,3 +747,4 @@ int main(int argc, char *argv[])
                         badwrites, badwritebytes);
     return 0;
 }
+

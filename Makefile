@@ -1,15 +1,17 @@
 
 VERSION=0.6
 
+REFRESH=""
+
 # normal CFLAGS
-CFLAGS=-O2 -Wall
+CFLAGS=-O2 -Wall -DREFRESH$(REFRESH)
 
 # CFLAGS without optimization
-CFLAGSNO=-O0 -Wall
+CFLAGSNO=-O0 -Wall -DREFRESH$(REFRESH)
 
 # targets
 ALL: bin tmp bin/volrace bin/bufhrt bin/highrestest \
-     bin/writeloop bin/catloop bin/playhrt 
+     bin/writeloop bin/catloop bin/playhrt bin/cptoshm bin/shmcat
 
 bin:
 	mkdir -p bin
@@ -26,17 +28,29 @@ bin/volrace: src/version.h src/volrace.c
 tmp/net.o: src/net.h src/net.c
 	$(CC) $(CFLAGS) -c -o tmp/net.o src/net.c
 
-bin/playhrt: src/version.h tmp/net.o src/playhrt.c
-	$(CC) $(CFLAGSNO) -o bin/playhrt src/playhrt.c tmp/net.o -lasound -lrt
+tmp/cprefresh_ass.o: src/cprefresh_default.s src/cprefresh_vfp.s src/cprefresh_arm.s
+	if [ $(REFRESH) = "" ]; then \
+	  $(CC) -c $(CFLAGSNO) -o tmp/cprefresh_ass.o src/cprefresh_default.s; \
+	elif [ $(REFRESH) = "ARM" ]; then \
+	  $(CC) -c $(CFLAGSNO) -marm -o tmp/cprefresh_ass.o src/cprefresh_arm.s; \
+	elif [ $(REFRESH) = "VFP" ]; then \
+	  $(CC) -c $(CFLAGSNO) -marm -mfpu=neon-vfpv4 -o tmp/cprefresh_ass.o src/cprefresh_vfp.s; \
+	fi
 
-bin/playhrt_ALSANC: src/version.h tmp/net.o src/playhrt.c
-	$(CC) $(CFLAGSNO) -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt_ALSANC src/playhrt.c tmp/net.o -lasound -lrt 
+tmp/cprefresh.o: src/cprefresh.h src/cprefresh.c 
+	$(CC) -c $(CFLAGSNO) -o tmp/cprefresh.o src/cprefresh.c
 
-bin/playhrt_static: src/version.h tmp/net.o src/playhrt.c
-	$(CC) $(CFLAGSNO) -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt_static src/playhrt.c tmp/net.o -lasound -lrt -lpthread -lm -ldl -static
+bin/playhrt: src/version.h tmp/net.o src/playhrt.c tmp/cprefresh.o tmp/cprefresh_ass.o
+	$(CC) $(CFLAGSNO) -o bin/playhrt src/playhrt.c tmp/net.o tmp/cprefresh.o tmp/cprefresh_ass.o -lasound -lrt
 
-bin/bufhrt: src/version.h tmp/net.o src/bufhrt.c
-	$(CC) $(CFLAGSNO) -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -lpthread -lrt
+bin/playhrt_ALSANC: src/version.h tmp/net.o src/playhrt.c tmp/cprefresh.o tmp/cprefresh_ass.o
+	$(CC) $(CFLAGSNO) -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt_ALSANC src/playhrt.c tmp/net.o tmp/cprefresh.o tmp/cprefresh_ass.o -lasound -lrt 
+
+bin/playhrt_static: src/version.h tmp/net.o src/playhrt.c tmp/cprefresh.o tmp/cprefresh_ass.o
+	$(CC) $(CFLAGSNO) -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt_static src/playhrt.c tmp/net.o tmp/cprefresh.o tmp/cprefresh_ass.o -lasound -lrt -lpthread -lm -ldl -static
+
+bin/bufhrt: src/version.h tmp/net.o src/bufhrt.c tmp/cprefresh.o tmp/cprefresh_ass.o
+	$(CC) $(CFLAGSNO) -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o tmp/cprefresh.o tmp/cprefresh_ass.o src/bufhrt.c -lpthread -lrt
 
 bin/highrestest: src/highrestest.c
 	$(CC) $(CFLAGSNO) -o bin/highrestest src/highrestest.c -lrt
@@ -46,6 +60,12 @@ bin/writeloop: src/writeloop.c
 
 bin/catloop: src/catloop.c
 	$(CC) $(CFLAGS) -o bin/catloop src/catloop.c -lpthread -lrt
+
+bin/cptoshm: src/cptoshm.c tmp/cprefresh_ass.o tmp/cprefresh.o
+	$(CC) $(CFLAGS) -o bin/cptoshm src/cptoshm.c tmp/cprefresh_ass.o tmp/cprefresh.o -lrt
+
+bin/shmcat: src/shmcat.c tmp/cprefresh_ass.o tmp/cprefresh.o
+	$(CC) $(CFLAGS) -o bin/shmcat tmp/cprefresh_ass.o tmp/cprefresh.o src/shmcat.c -lrt
 
 clean: 
 	rm -rf src/version.h bin tmp

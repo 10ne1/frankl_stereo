@@ -11,6 +11,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include "version.h"
+#include "cprefresh.h"
+
+void usage( ) {
+  fprintf(stderr,
+          "shmcat (version %s of frankl's stereo utilities",
+          VERSION);
+  fprintf(stderr, ")\nUSAGE:\n");
+  fprintf(stderr,
+"\n"
+" shmcat memname blksize\n"
+"\n"
+"  This program writes the content of a shared memory file memname in blocks\n"
+"  of size blksize to stdout. The shared memory file is deleted afterwards.\n"
+"\n"
+"  You may create the shared memory file with 'cptoshm'.\n"
+"\n"
+);
+}
 
 int main(int argc, char *argv[])
 {
@@ -19,6 +38,12 @@ int main(int argc, char *argv[])
   size_t length, blen, done, wlen;
   struct stat sb;
   char *mem, *ptr;
+
+  if (argc != 3) {
+     usage();
+     exit(0);
+  }
+
   memname = argv[1];
   blen = atoi(argv[2]);
   if ((fd = shm_open(memname, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) == -1){
@@ -38,6 +63,8 @@ int main(int argc, char *argv[])
   ptr = mem;
   done = 0;
   while (done < length-blen) {
+      refreshmem(ptr, blen);
+      refreshmem(ptr, blen);
       wlen = write(1, ptr, blen);
       done += wlen;
       ptr += wlen;

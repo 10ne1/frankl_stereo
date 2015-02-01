@@ -1,5 +1,5 @@
 /*
-playhrt.c                Copyright frankl 2013-2014
+playhrt.c                Copyright frankl 2013-2015
 
 This file is part of frankl's stereo utilities.
 See the file License.txt of the distribution and
@@ -18,7 +18,7 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 #include <string.h>
 #include <time.h>
 #include <alsa/asoundlib.h>
-
+#include "cprefresh.h"
 
 /* help page */
 /* vim hint to remove resp. add quotes:
@@ -205,13 +205,13 @@ void usage( ) {
 
 int main(int argc, char *argv[])
 {
-    int sfd, s, moreinput, err, verbose, overwrite, nrchannels, startcount;
-    uint *uptr;
+    int sfd, s, moreinput, err, verbose, nrchannels, startcount;
     long blen, hlen, ilen, olen, extra, loopspersec,
          nsec, count, wnext, badloops, badreads, readmissing;
     long long icount, ocount, badframes;
-    void *buf, *wbuf, *wbuf2, *iptr, *optr, *max;
+    void *buf, *iptr, *optr, *max;
     struct timespec mtime;
+    /* struct timespec mtimecheck; */
     double looperr, off, extraerr, extrabps;
     snd_pcm_t *pcm_handle;
     snd_pcm_hw_params_t *hwparams;
@@ -272,7 +272,6 @@ int main(int argc, char *argv[])
     access = SND_PCM_ACCESS_RW_INTERLEAVED;
     extrabps = 0;
     nonblock = 0;
-    overwrite = 0;
     verbose = 0;
     while ((optc = getopt_long(argc, argv, "r:p:Sb:i:n:s:f:k:Mc:P:d:e:o:NvVh",
             longoptions, &optind)) != -1) {
@@ -341,7 +340,6 @@ int main(int argc, char *argv[])
           nonblock = 1;
           break;
         case 'O':
-          overwrite = atoi(optarg);
           break;
         case 'v':
           verbose = 1;
@@ -418,16 +416,6 @@ int main(int argc, char *argv[])
     /* the pointers for next input and next output */
     iptr = buf;
     optr = buf;
-    if (! (wbuf = malloc(2*olen*bytesperframe)) ) {
-        fprintf(stderr, "Cannot allocate buffer of length %ld.\n",
-                2*olen*bytesperframe);
-        exit(3);
-    }
-    if (! (wbuf2 = malloc(2*olen*bytesperframe)) ) {
-        fprintf(stderr, "Cannot allocate another buffer of length %ld.\n",
-                2*olen*bytesperframe);
-        exit(4);
-    }
 
     /* setup network connection */
     if (host != NULL && port != NULL)
@@ -527,6 +515,7 @@ int main(int argc, char *argv[])
   if (access == SND_PCM_ACCESS_RW_INTERLEAVED) {
     /* fill half buffer */
     for (; iptr < buf + 2*hlen - ilen; ) {
+        memclean(iptr, ilen);
         s = read(sfd, iptr, ilen);
         if (s < 0) {
             fprintf(stderr, "Read error.\n");
@@ -551,7 +540,6 @@ int main(int argc, char *argv[])
     if (verbose)
        fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec)\n", 
                        mtime.tv_sec, mtime.tv_nsec);
-    memcpy(wbuf, optr, wnext*bytesperframe);
     for (count=1, off=looperr; 1; count++, off+=looperr) {
         /* compute time for next wakeup */
         mtime.tv_nsec += nsec;
@@ -559,16 +547,19 @@ int main(int argc, char *argv[])
           mtime.tv_nsec -= 1000000000;
           mtime.tv_sec++;
         }
+        refreshmem(optr, wnext*bytesperframe);
+        refreshmem(optr, wnext*bytesperframe);
+        refreshmem(optr, wnext*bytesperframe);
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
         /* write a chunk, this comes first immediately after waking up */
 #ifdef ALSANC
         /* here we use snd_pcm_writei_nc (if available in patched ALSA
            library. This avoids some error checks and high cpu usage with
            small hardware buffer sizes */
-        s = snd_pcm_writei_nc(pcm_handle, wbuf, wnext);
+        s = snd_pcm_writei_nc(pcm_handle, optr, wnext);
 #else
         /* otherwise we use the standard snd_pcm_writei  */
-        s = snd_pcm_writei(pcm_handle, wbuf, wnext);
+        s = snd_pcm_writei(pcm_handle, optr, wnext);
 #endif
         while (s < 0) {
             s = snd_pcm_recover(pcm_handle, s, 0);
@@ -581,9 +572,9 @@ int main(int argc, char *argv[])
                fprintf(stderr, "playhrt: bad write at (%ld sec %ld nsec)\n",
                        mtime.tv_sec, mtime.tv_nsec);
 #ifdef ALSANC
-            s = snd_pcm_writei_nc(pcm_handle, wbuf, wnext);
+            s = snd_pcm_writei_nc(pcm_handle, optr, wnext);
 #else
-            s = snd_pcm_writei(pcm_handle, wbuf, wnext);
+            s = snd_pcm_writei(pcm_handle, optr, wnext);
 #endif
         }
         /* we count output and bad loops */
@@ -613,6 +604,7 @@ int main(int argc, char *argv[])
         }
         /* read if buffer not half filled */
         if (moreinput && (iptr > optr ? iptr-optr : iptr+blen-optr) < hlen) {
+            memclean(iptr, ilen);
             s = read(sfd, iptr, ilen);
             if (s < 0) {
                 fprintf(stderr, "Read error.\n");
@@ -636,20 +628,6 @@ int main(int argc, char *argv[])
         }
         if (wnext == 0)
             break;    /* done */
-        /* copy data for next write:
-           they are always lying in the same memory address and so hopefully
-           in processor cache     */
-        for (s = 0, uptr=(uint*)wbuf; s < wnext*bytesperframe/sizeof(uint)+1; s++)
-             *uptr++ = 2863311530u;
-        for (s = 0, uptr=(uint*)wbuf; s < wnext*bytesperframe/sizeof(uint)+1; s++)
-             *uptr++ = 4294967295u;
-        for (s = 0, uptr=(uint*)wbuf; s < wnext*bytesperframe/sizeof(uint)+1; s++)
-             *uptr++ = 0;
-        memcpy(wbuf2, optr, wnext*bytesperframe);
-        memcpy(wbuf, wbuf2, wnext*bytesperframe);
-        /* overwrite multiple times (does this make a difference?)  */
-        for (s = 0; s < overwrite; s++)
-            memcpy(wbuf, wbuf2, wnext*bytesperframe);
     }
   } else if (access == SND_PCM_ACCESS_MMAP_INTERLEAVED) {
     /* mmap access */
@@ -666,12 +644,6 @@ int main(int argc, char *argv[])
                        mtime.tv_sec, mtime.tv_nsec);
     for (count=1, off=looperr; 1; count++, off+=looperr) {
         if (count == startcount)  snd_pcm_start(pcm_handle);
-        /* compute time for next wakeup */
-        mtime.tv_nsec += nsec;
-        if (mtime.tv_nsec > 999999999) {
-          mtime.tv_nsec -= 1000000000;
-          mtime.tv_sec++;
-        }
         avail = snd_pcm_avail_update(pcm_handle);
         if (verbose) {
           if (5*avail < hwbufsize && count > startcount)
@@ -695,19 +667,7 @@ int main(int argc, char *argv[])
         }
         ilen = frames * bytesperframe;
         iptr = areas[0].addr + offset * bytesperframe;
-        /* clean memory */
-        for (s = 0, uptr=(uint*)buf; s < ilen/sizeof(uint); s++)
-             *uptr++ = 2863311530u;
-        for (s = 0, uptr=(uint*)buf; s < ilen/sizeof(uint); s++)
-             *uptr++ = 4294967295u;
-        for (s = 0, uptr=(uint*)buf; s < ilen/sizeof(uint); s++)
-             *uptr++ = 0;
-        for (s = 0, uptr=(uint*)iptr; s < ilen/sizeof(uint); s++)
-             *uptr++ = 2863311530u;
-        for (s = 0, uptr=(uint*)iptr; s < ilen/sizeof(uint); s++)
-             *uptr++ = 4294967295u;
-        for (s = 0, uptr=(uint*)iptr; s < ilen/sizeof(uint); s++)
-             *uptr++ = 0;
+        memclean(iptr, ilen);
         /* we have first tried the following sequence: 
               s = read(sfd, buf, ilen);
               clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
@@ -716,7 +676,23 @@ int main(int argc, char *argv[])
            but a direct read without buffer buf and an immediate commit 
            after sleep seems better */
         s = read(sfd, iptr, ilen);
+        /* compute time for next wakeup */
+        if (count == 3000)   /* reset when fully running */
+           clock_gettime(CLOCK_MONOTONIC, &mtime);
+        mtime.tv_nsec += nsec;
+        if (mtime.tv_nsec > 999999999) {
+          mtime.tv_nsec -= 1000000000;
+          mtime.tv_sec++;
+        }
+        /* debug:  check that we really sleep to some time in the future
+        if (count % 10000 == 0){ 
+             clock_gettime(CLOCK_MONOTONIC, &mtimecheck); 
+             printf("wait %ld %ld\n", mtime.tv_sec-mtimecheck.tv_sec, mtime.tv_nsec-mtimecheck.tv_nsec); 
+        } */
+	refreshmem(iptr, s);
+	refreshmem(iptr, s);
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
+	refreshmem(iptr, s);
         snd_pcm_mmap_commit(pcm_handle, offset, frames);
         if (s < 0) {
             fprintf(stderr, "Read error.\n");
