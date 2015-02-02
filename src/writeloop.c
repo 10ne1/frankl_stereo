@@ -28,10 +28,12 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 */
 void usage( ) {
   fprintf(stderr,
-
+          "writeloop (version %s of frankl's stereo utilities)\nUSAGE:\n",
+          VERSION);
+  fprintf(stderr,
 "  writeloop --block-size=<bsize> --file-size=<fsize> <file1> <file2> [<file3>..]\n"
 "\n"
-"  This program 'writeloop' reads data from stdin and writes them \n"
+"  This program 'writeloop' reads data from stdin or a file and writes them \n"
 "  cyclically into the files whose names <file1>, ..., are given on the \n"
 "  command line. (If the next file to be written exists then the program \n"
 "  will wait until it is deleted.)\n"
@@ -53,6 +55,14 @@ void usage( ) {
 "  --file-size=intval, -f intval\n"
 "      the maximal size of the written files (default is 64000).\n"
 "  \n"
+"  --from-file=fname,  -F fname\n"
+"      read data from file fname instead of stdin.\n"
+"\n"
+"  --shared, -s\n"
+"      use named shared memory instead of files. For large amounts of shared \n"
+"      memory you may need to enlarge '/proc/sys/kernel/shmmax' directly or\n"
+"      via sysctl.\n"
+"\n"
 "  --version, -V\n"
 "      print information about the version of the program and abort.\n"
 "\n"
@@ -71,6 +81,16 @@ void usage( ) {
 "       catloop --block-size=1000 /ramdisk/aa /ramdisk/bb /ramdisk/cc | \\\n"
 "             aplay -t raw -f S16_LE -c 2 -r44100 -D \"hw:0,0\" \n"
 "\n"
+"  Or similarly, using less system resources, with shared memory:\n"
+"\n"
+"       sox /my/disk/cd.flac -t raw | writeloop --block-size=4000 \\\n"
+"                --file-size=20000 --shared /aa /bb /cc &\n"
+"\n"
+"  and \n"
+"       catloop --block-size=1000 --shared /aa /bb /cc | \\\n"
+"             aplay -t raw -f S16_LE -c 2 -r44100 -D \"hw:0,0\" \n"
+"\n"
+"     \n"
 "  In experiments I found that audio playback was improved compared to a \n"
 "  direct playing. For larger file sizes (a few megabytes) the effect was\n"
 "  similar to copying the file into RAM and playing that file.\n"

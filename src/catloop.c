@@ -27,6 +27,9 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 */
 void usage( ) {
   fprintf(stderr,
+          "catloop (version %s of frankl's stereo utilities)\nUSAGE:\n",
+          VERSION);
+  fprintf(stderr,
 
 "  catloop --block-size=<bsize> <file1> <file2> [<file3>..]\n"
 "\n"
@@ -40,12 +43,21 @@ void usage( ) {
 "\n"
 "  The given files should be on a ramdisk. writeloop/catloop provide\n"
 "  a buffer for data read from a hard disk or from the network.\n"
+"\n"
+"Alternatively, shared memory can be used instead of files via\n"
+"the --shared option. In this case the convention is to use filenames\n"
+"with empty path but starting with a slash.\n"
 "  \n"
 "  OPTIONS\n"
 "\n"
 "  --block-size=intval, -b intval\n"
 "      the size in bytes of the data chunks written to stdout.\n"
 "      Default is 1000 bytes.\n"
+"\n"
+"  --shared, -s\n"
+"      use named shared memory instead of files. For large amounts of shared \n"
+"      memory you may need to enlarge '/proc/sys/kernel/shmmax' directly or\n"
+"      via sysctl.\n"
 "\n"
 "  --version, -V\n"
 "      print information about the version of the program and abort.\n"
@@ -65,6 +77,16 @@ void usage( ) {
 "       catloop --block-size=1000 /ramdisk/aa /ramdisk/bb /ramdisk/cc | \\\n"
 "             aplay -t raw -f S16_LE -c 2 -r44100 -D \"hw:0,0\" \n"
 "\n"
+"  Or similarly, using less system resources, with shared memory:\n"
+"\n"
+"       sox /my/disk/cd.flac -t raw | writeloop --block-size=4000 \\\n"
+"                --file-size=20000 --shared /aa /bb /cc &\n"
+"\n"
+"  and \n"
+"       catloop --block-size=1000 --shared /aa /bb /cc | \\\n"
+"             aplay -t raw -f S16_LE -c 2 -r44100 -D \"hw:0,0\" \n"
+"\n"
+"     \n"
 "  In experiments I found that audio playback was improved compared to a \n"
 "  direct playing. For larger file sizes (a few megabytes) the effect was\n"
 "  similar to copying the file into RAM and playing that file.\n"

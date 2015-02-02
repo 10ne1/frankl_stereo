@@ -32,6 +32,9 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 */
 void usage( ) {
   fprintf(stderr,
+          "bufhrt (version %s of frankl's stereo utilities)\nUSAGE:\n",
+          VERSION);
+  fprintf(stderr,
 "\n"
 "  bufhrt [options] [--shared <snam1> <snam2> [...]]\n"
 "\n"
