@@ -29,6 +29,9 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 */
 void usage( ) {
   fprintf(stderr,
+          "volrace (version %s of frankl's stereo utilities)\nUSAGE:\n",
+          VERSION);
+  fprintf(stderr,
 "\n"
 "  volrace [options] \n"
 "\n"

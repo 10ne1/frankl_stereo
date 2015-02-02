@@ -20,6 +20,9 @@
 */
 void usage( ) {
   fprintf(stderr,
+          "cptoshm (version %s of frankl's stereo utilities)\nUSAGE:\n",
+          VERSION);
+  fprintf(stderr,
 "cptoshm --shmname=/<name> [options]\n"
 "\n"
 "This program copies the content of a file (or of stdin) into a shared \n"
