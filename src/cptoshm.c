@@ -39,7 +39,7 @@ void usage( ) {
 "\n"
 "--file=name, -i name\n"
 "    the name of the input file. If this is not given input is taken\n"
-"    from stdin (and in this case you need to specify --max-input).\n"
+"    from stdin (and in this case you have to specify --max-input).\n"
 "\n"
 "--shmname=string, -o string\n"
 "    the name of the shared memory area to which the input is written.\n"

@@ -85,7 +85,7 @@ void usage( ) {
 "      the name of a file that should be read instead of standard input.\n"
 "\n"
 "  --host-to-read=hname, -H hname\n"
-"      the name or ip-address of a machine. If given, you need to specify\n"
+"      the name or ip-address of a machine. If given, you have to specify\n"
 "      --port-to-read as well. In this case data are not read from stdin\n"
 "      but from this host and port.\n"
 "\n"
