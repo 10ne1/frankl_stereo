@@ -1,9 +1,83 @@
         Changes between published versions
 
+0.6 to 0.7
+
+Comments for users of previous versions: Four main ideas went into this
+release, each of these cause audible improvements in my setup:
+
+(1) Use of the mmap interface in ALSA with playhrt. This reduces the
+    copying of audio data and makes the patch of the ALSA library which
+    was proposed in previous versions unnecessary. It may be necessary to
+    use a slightly larger hardware buffer than before for the audio
+    device (--hw-buffer option).
+
+(2) Optional use of shared memory in various places. Shared memory can be used
+    to transfer data between different programs. Compared to a transfer via
+    files this avoids file system overhead, and compared to transfer via pipes
+    this avoids (difficult to control and understand) buffer management by
+    the operating system.
+
+(3) Cleaning RAM before writing, and refreshing data in RAM. The content of
+    RAM also gets refreshed on hardware level. With explicit reading and
+    rewriting of data in RAM (which look superfluous on the programming
+    level) we try to represent data "cleaner" in RAM before they are sent
+    to the next program or to the next computer or to the sound device.
+    This leads to surprising audible improvements in my setup. Several
+    variants were tested over longer periods, for ARM computers we
+    provide assembler code.
+
+(4) From experiments I found that the physical representation of music
+    files on a hard disk influences the sound quality during playback,
+    even if the data are heavily processed before playback. This release
+    contains a script 'improvefile' which uses bufhrt to produce a
+    bit identical copy of a file on a hard disk. I have tried this for many
+    music files on my hard disk and made an audible comparison of the two
+    files, the copied file always sounded "better" and in some cases it
+    revealed remarkably more details of the music. I have not made
+    experiments with SSDs.
+
+And here is a more detailed list of CHANGES.
+
+- new scripts: 'improvefile' for bit identical but different sounding
+  files on hard disks; 'playflac441' as an example script for playback of
+  a flac file in 44.1/16 format
+
+- new utility functions used by cptoshm, shmcat, bufhrt and playhrt:
+  refreshmem and memclean are used to rewrite data in RAM, respectively
+  to clean RAM before overwriting, assembler versions are provided for
+  ARM and ARM-vfp architectures
+
+- bufhrt: added --shared input option, can be used directly with writeloop
+  and without a pipe from catloop (so that the operating system has fewer
+  buffers to maintain)
+
+- all programs: numerous improvements in the documentation and in the
+  information printed with --verbose flags (many of these suggested by
+  Simon Rambert)
+
+- playhrt: new option --mmap which uses the low level mmap driver interface
+  of ALSA drivers (in contrast to aplay). This mode is now recommended, even
+  over the version with a patched ALSA library, as was suggested in
+  version 0.6.
+
+- playhrt: new option --number-channels for use with multi-channel setups
+  (requested and tested by Simon Rambert)
+
+- writeloop: allow input from file via --from-file option
+
+- writeloop and catloop: introduce --shared option for using shared memory
+  instead of files
+
+- new utilities cptoshm and shmcat: copy data to a shared memory region in
+  RAM, respectively write these data to stdout
+
+- bufhrt: introduced --interval mode, repeatedly buffers data without
+  output and then outputs chunks with precise timing and no reading
+
 0.5 to 0.6
 
 - playhrt: now writes data directly after sleep, before loop that checks
-  the result 
+  the result
 
 - volrace did not work with 32-bit input, is fixed now (reported by
   lililinux)
