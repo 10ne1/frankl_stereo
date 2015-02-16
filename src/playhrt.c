@@ -197,7 +197,7 @@ void usage( ) {
 "  With --mmap --verbose it is shown with time stamps if the hardware \n"
 "  buffer is filled less than 20%% or more than 80%%, which can be used \n"
 "  to find a sensible value for --extra-bytes-per-second (use formula above\n"
-"  with number of seconds until first warning and multiply by 0.6).
+"  with number of seconds until first warning and multiply by 0.6).\n"
 "\n"
 );
 }
