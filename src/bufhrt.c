@@ -583,7 +583,7 @@ int main(int argc, char *argv[])
 
           /* write out */
           optr = buf;
-          wnext = olen;
+          wnext = (iptr - optr <= olen) ? (iptr - optr) : olen;
           clock_gettime(CLOCK_MONOTONIC, &mtime);
           for (lcount=0, off=looperr; optr < iptr; lcount++, off+=looperr) {
               /* once cache is filled and other side is reading we reset time */
