@@ -17,11 +17,10 @@ memcp_reg:
         .type   memcp_regX, %function
 memcp_regX:
         mov r3, #0
-        mov r3, #0
         ldr r3, [r1], #4
         mov r12, #0xFFFFFFFF
-        mov r12, #0xFFFFFFFF
         eor r3, r3, r12
+        mov r12, #0xFFFFFFFF
         eor r3, r3, r12
         str r3, [r0], #4
         subs r2, r2,  #4
