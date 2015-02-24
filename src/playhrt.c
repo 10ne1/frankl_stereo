@@ -154,6 +154,9 @@ void usage( ) {
 "      to write a little bit slower, and positive to write a bit\n"
 "      faster to the sound device). The default is 0.\n"
 "\n"
+"  --in-net-buffer-size=intval, -N intval\n"
+"      ...\n"
+"\n"
 "  --extra-frames-out=intval, -o intval\n"
 "      when in one loop not all data were written the program has to\n"
 "      write some additional frames the next time. This specifies the\n"
@@ -205,8 +208,9 @@ void usage( ) {
 
 int main(int argc, char *argv[])
 {
-    int sfd, s, moreinput, err, verbose, nrchannels, startcount, sumavg;
-    long blen, hlen, ilen, olen, extra, loopspersec,
+    int sfd, s, moreinput, err, verbose, nrchannels, startcount, sumavg,
+        innetbufsize;
+    long blen, hlen, ilen, olen, extra, loopspersec, nrdelays,
          nsec, count, wnext, badloops, badreads, readmissing, avgav, checkav;
     long long icount, ocount, badframes;
     void *buf, *iptr, *optr, *max;
@@ -242,6 +246,7 @@ int main(int argc, char *argv[])
         {"period-size", required_argument, 0, 'P' },
         {"device", required_argument, 0, 'd' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
+        {"in-net-buffer-size", required_argument, 0, 'K' },
         {"extra-frames-out", required_argument, 0, 'o' },
         {"non-blocking-write", no_argument, 0, 'N' },
         {"overwrite", required_argument, 0, 'O' },
@@ -274,6 +279,7 @@ int main(int argc, char *argv[])
     access = SND_PCM_ACCESS_RW_INTERLEAVED;
     extrabps = 0;
     nonblock = 0;
+    innetbufsize = 0;
     corr = 0;
     verbose = 0;
     while ((optc = getopt_long(argc, argv, "r:p:Sb:i:n:s:f:k:Mc:P:d:e:o:NvVh",
@@ -335,6 +341,11 @@ int main(int argc, char *argv[])
           break;
         case 'e':
           extrabps = atof(optarg);
+          break;
+        case 'K':
+          innetbufsize = atoi(optarg);
+          if (innetbufsize != 0 && innetbufsize < 128)
+              innetbufsize = 128;
           break;
         case 'o':
           extra = atoi(optarg);
@@ -421,8 +432,16 @@ int main(int argc, char *argv[])
     optr = buf;
 
     /* setup network connection */
-    if (host != NULL && port != NULL)
+    if (host != NULL && port != NULL) {
         sfd = fd_net(host, port);
+        if (innetbufsize != 0) {
+            if (setsockopt(sfd, SOL_SOCKET, SO_RCVBUF, (void*)&innetbufsize, sizeof(int)) < 0) {
+                fprintf(stderr, "playhrt: cannot set buffer size for network socket to %d.\n",
+                        innetbufsize);
+                exit(23);
+            }
+        }
+    }
 
     /* setup sound device */
     snd_pcm_hw_params_malloc(&hwparams);
@@ -514,271 +533,245 @@ int main(int argc, char *argv[])
     badframes = 0;
     badreads = 0;
     readmissing = 0;
+    nrdelays = 0;
 
-  if (access == SND_PCM_ACCESS_RW_INTERLEAVED) {
-    /* fill half buffer */
-    for (; iptr < buf + 2*hlen - ilen; ) {
-        memclean(iptr, ilen);
-        s = read(sfd, iptr, ilen);
-        if (s < 0) {
-            fprintf(stderr, "Read error.\n");
-            exit(18);
-        }
-        icount += s;
-        if (s == 0) {
-            moreinput = 0;
-            break;
-        }
-        iptr += s;
-    }
-    if (iptr - optr < olen*bytesperframe)
-        wnext = (iptr-optr)/bytesperframe;
-    else
-        wnext = olen;
+    /* short delay to allow input to fill buffer, not needed?
+    usleep(200000);   */
 
-    if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
-        fprintf(stderr, "Cannot get monotonic clock.\n");
-        exit(19);
-    }
-    if (verbose)
-       fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec)\n",
-                       mtime.tv_sec, mtime.tv_nsec);
-    for (count=1, off=looperr; 1; count++, off+=looperr) {
-        /* compute time for next wakeup */
-        mtime.tv_nsec += nsec;
-        if (mtime.tv_nsec > 999999999) {
-          mtime.tv_nsec -= 1000000000;
-          mtime.tv_sec++;
-        }
-        refreshmem(optr, wnext*bytesperframe);
-        refreshmem(optr, wnext*bytesperframe);
-        refreshmem(optr, wnext*bytesperframe);
-        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
-        /* write a chunk, this comes first immediately after waking up */
+    if (access == SND_PCM_ACCESS_RW_INTERLEAVED) {
+      /* fill half buffer */
+      for (; iptr < buf + 2*hlen - ilen; ) {
+          memclean(iptr, ilen);
+          s = read(sfd, iptr, ilen);
+          if (s < 0) {
+              fprintf(stderr, "Read error.\n");
+              exit(18);
+          }
+          icount += s;
+          if (s == 0) {
+              moreinput = 0;
+              break;
+          }
+          iptr += s;
+      }
+      if (iptr - optr < olen*bytesperframe)
+          wnext = (iptr-optr)/bytesperframe;
+      else
+          wnext = olen;
+
+      if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
+          fprintf(stderr, "Cannot get monotonic clock.\n");
+          exit(19);
+      }
+      if (verbose)
+         fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec)\n",
+                         mtime.tv_sec, mtime.tv_nsec);
+      for (count=1, off=looperr; 1; count++, off+=looperr) {
+          /* compute time for next wakeup */
+          mtime.tv_nsec += nsec;
+          if (mtime.tv_nsec > 999999999) {
+            mtime.tv_nsec -= 1000000000;
+            mtime.tv_sec++;
+          }
+          refreshmem(optr, wnext*bytesperframe);
+          refreshmem(optr, wnext*bytesperframe);
+          clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
+          /* write a chunk, this comes first immediately after waking up */
 #ifdef ALSANC
-        /* here we use snd_pcm_writei_nc (if available in patched ALSA
-           library. This avoids some error checks and high cpu usage with
-           small hardware buffer sizes */
-        s = snd_pcm_writei_nc(pcm_handle, optr, wnext);
+          /* here we use snd_pcm_writei_nc (if available in patched ALSA
+             library. This avoids some error checks and high cpu usage with
+             small hardware buffer sizes */
+          s = snd_pcm_writei_nc(pcm_handle, optr, wnext);
 #else
-        /* otherwise we use the standard snd_pcm_writei  */
-        s = snd_pcm_writei(pcm_handle, optr, wnext);
+          /* otherwise we use the standard snd_pcm_writei  */
+          s = snd_pcm_writei(pcm_handle, optr, wnext);
 #endif
-        while (s < 0) {
-            s = snd_pcm_recover(pcm_handle, s, 0);
-            if (s < 0) {
-                snd_pcm_prepare(pcm_handle);
-                fprintf(stderr, "<<<<< Cannot write, resetted >>>>\n");
-            }
-            clock_gettime(CLOCK_MONOTONIC, &mtime);
-            if (verbose)
-               fprintf(stderr, "playhrt: bad write at (%ld sec %ld nsec)\n",
-                       mtime.tv_sec, mtime.tv_nsec);
+          while (s < 0) {
+              s = snd_pcm_recover(pcm_handle, s, 0);
+              if (s < 0) {
+                  snd_pcm_prepare(pcm_handle);
+                  fprintf(stderr, "<<<<< Cannot write, resetted >>>>\n");
+              }
+              clock_gettime(CLOCK_MONOTONIC, &mtime);
+              if (verbose)
+                 fprintf(stderr, "playhrt: bad write at (%ld sec %ld nsec)\n",
+                         mtime.tv_sec, mtime.tv_nsec);
 #ifdef ALSANC
-            s = snd_pcm_writei_nc(pcm_handle, optr, wnext);
+              s = snd_pcm_writei_nc(pcm_handle, optr, wnext);
 #else
-            s = snd_pcm_writei(pcm_handle, optr, wnext);
+              s = snd_pcm_writei(pcm_handle, optr, wnext);
 #endif
-        }
-        /* we count output and bad loops */
-        if (s < wnext) {
-            badloops++;
-            badframes += (wnext - s);
-        }
-        ocount += s*bytesperframe;
-        optr += s*bytesperframe;
-        wnext = olen + wnext - s;
-        if (off >= 1.0) {
-           off -= 1.0;
-           wnext++;
-        }
-        if (wnext >= olen+extra) {
-           if (verbose)
-              fprintf(stderr, "playhrt: Underrun by %ld bytes at (%ld sec %ld nsec).\n",
-                      wnext - olen - extra, mtime.tv_sec, mtime.tv_nsec);
-           wnext = olen+extra-1;
-        }
-        s = (iptr >= optr ? iptr - optr : iptr+blen-optr);
-        if (s <= wnext*bytesperframe) {
-            wnext = s/bytesperframe;
-        }
-        if (optr+wnext*bytesperframe >= max) {
-            optr -= blen;
-        }
-        /* read if buffer not half filled */
-        if (moreinput && (iptr > optr ? iptr-optr : iptr+blen-optr) < hlen) {
-            memclean(iptr, ilen);
-            s = read(sfd, iptr, ilen);
-            if (s < 0) {
-                fprintf(stderr, "Read error.\n");
-                exit(20);
-            } else if (s < ilen) {
-                badreads++;
-                readmissing += (ilen-s);
-            }
-            icount += s;
-            iptr += s;
-            /* copy input to beginning if we reach end of buffer */
-            if (iptr >= max) {
-                memcpy(buf-(olen+extra)*bytesperframe,
-                                         max-(olen+extra)*bytesperframe,
-                                         iptr-max+(olen+extra)*bytesperframe);
-                iptr -= blen;
-            }
-            if (s == 0) { /* input complete */
-                moreinput = 0;
-            }
-        }
-        if (wnext == 0)
-            break;    /* done */
-    }
-  } else if (access == SND_PCM_ACCESS_MMAP_INTERLEAVED) {
-    /* mmap access */
-    /* why does start threshold not work ??? */
-   if (verbose)
-       fprintf(stderr, "playhrt: Using mmap access.\n");
-   startcount = hwbufsize/(2*olen);
-   if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
-        fprintf(stderr, "Cannot get monotonic clock.\n");
-        exit(19);
-    }
-    if (verbose)
-       fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec)\n",
-                       mtime.tv_sec, mtime.tv_nsec);
-    sumavg= 0;
-    checktime = 0;
-    for (count=1, off=looperr; 1; count++, off+=looperr) {
-        if (count == startcount)  snd_pcm_start(pcm_handle);
-        avail = snd_pcm_avail_update(pcm_handle);
-/*        if (corr == 0 && 5*avail < hwbufsize && count > startcount) {
-            if (verbose) {
-                fprintf(stderr,
-                        "playhrt: available mmap buffer small: %ld (at %ld s %ld ns)\n",
-                        avail, mtime.tv_sec, mtime.tv_nsec);
-            }
-            corr = -((long)hwbufsize * (long)bytesperframe * 3)/10;
-            extrabps += (double)corr/(mtime.tv_sec*1.0+mtime.tv_nsec/1000000000.0-checktime);
-            checktime = mtime.tv_sec*1.0+mtime.tv_nsec/1000000000.0;
-            extraerr = 1.0*bytesperframe*rate;
-            extraerr = extraerr/(extraerr+extrabps);
-            nsec = (int) (1000000000*extraerr/loopspersec);
-            fprintf(stderr, "playhrt: Avoiding buffer overrun! Please use option \n"
-                    "      --extra-bytes-per-second=%d\n"
-                    "on next call.", (int)extrabps);
-        }
-        if (corr == 0 && 5*avail > 4*hwbufsize && count > startcount) {
-            if (verbose) {
-                fprintf(stderr,
-                        "playhrt: available mmap buffer large: %ld (at %ld s %ld ns)\n",
-                        avail, mtime.tv_sec, mtime.tv_nsec);
-            }
-            corr = +(hwbufsize * bytesperframe * 3)/10;
-            extrabps += (double)corr/(mtime.tv_sec*1.0+mtime.tv_nsec/1000000000.0-checktime);
-            checktime = mtime.tv_sec*1.0+mtime.tv_nsec/1000000000.0;
-            extraerr = 1.0*bytesperframe*rate;
-            extraerr = extraerr/(extraerr+extrabps);
-            nsec = (int) (1000000000*extraerr/loopspersec);
-            fprintf(stderr, "playhrt: Avoiding buffer underrun! Please use option \n"
-                    "      --extra-bytes-per-second=%d\n"
-                    "on next call.", (int)extrabps);
-        }
-*/
-        if (count > startcount && count % 4096 == 0) {
-            sumavg = 16;
-            avgav = 0;
-        }
-        if (sumavg) {
-            avgav += avail;
-            if (sumavg == 1) {
-                if (verbose > 1)
-                    fprintf(stderr, "playhrt: average available buffer: %ld (%ld sec %ld nsec)\n", avgav/16, mtime.tv_sec, mtime.tv_nsec);
-                if (checktime == 0.0 && count > startcount+30000) {
-                     checktime = 1.0*mtime.tv_sec + mtime.tv_nsec/1000000000.0;
-                     checkav = avgav/16;
-                     corr = 1;
-                }
-                if (corr && avgav/16 > checkav + hwbufsize*3/10) {
-                     extrabps += (double)((avgav/16-checkav)*bytesperframe)/(mtime.tv_sec*1.0+mtime.tv_nsec/1000000000.0-checktime);
-                     extraerr = 1.0*bytesperframe*rate;
-                     extraerr = extraerr/(extraerr+extrabps);
-                     nsec = (int) (1000000000*extraerr/loopspersec);
-                     corr = 0;
-                     fprintf(stderr, "playhrt: Avoiding buffer underrun! Please use option \n"
-                             "      --extra-bytes-per-second=%d\n"
-                             "on next call.\n", (int)extrabps);
-                }
-                if (corr && avgav/16 < checkav - hwbufsize*3/10) {
-                     extrabps += (double)((avgav/16-checkav)*bytesperframe)/(mtime.tv_sec*1.0+mtime.tv_nsec/1000000000.0-checktime);
-                     extraerr = 1.0*bytesperframe*rate;
-                     extraerr = extraerr/(extraerr+extrabps);
-                     nsec = (int) (1000000000*extraerr/loopspersec);
-                     corr = 0;
-                     fprintf(stderr, "playhrt: Avoiding buffer overrun! Please use option \n"
-                             "      --extra-bytes-per-second=%d\n"
-                             "on next call.\n", (int)extrabps);
-                }
-            }
-            sumavg--;
-        }
+          }
+          /* we count output and bad loops */
+          if (s < wnext) {
+              badloops++;
+              badframes += (wnext - s);
+          }
+          ocount += s*bytesperframe;
+          optr += s*bytesperframe;
+          wnext = olen + wnext - s;
+          if (off >= 1.0) {
+             off -= 1.0;
+             wnext++;
+          }
+          if (wnext >= olen+extra) {
+             if (verbose)
+                fprintf(stderr, "playhrt: Underrun by %ld bytes at (%ld sec %ld nsec).\n",
+                        wnext - olen - extra, mtime.tv_sec, mtime.tv_nsec);
+             wnext = olen+extra-1;
+          }
+          s = (iptr >= optr ? iptr - optr : iptr+blen-optr);
+          if (s <= wnext*bytesperframe) {
+              wnext = s/bytesperframe;
+          }
+          if (optr+wnext*bytesperframe >= max) {
+              optr -= blen;
+          }
+          /* read if buffer not half filled */
+          if (moreinput && (iptr > optr ? iptr-optr : iptr+blen-optr) < hlen) {
+              memclean(iptr, ilen);
+              s = read(sfd, iptr, ilen);
+              if (s < 0) {
+                  fprintf(stderr, "Read error.\n");
+                  exit(20);
+              } else if (s < ilen) {
+                  badreads++;
+                  readmissing += (ilen-s);
+              }
+              icount += s;
+              iptr += s;
+              /* copy input to beginning if we reach end of buffer */
+              if (iptr >= max) {
+                  memcpy(buf-(olen+extra)*bytesperframe,
+                                           max-(olen+extra)*bytesperframe,
+                                           iptr-max+(olen+extra)*bytesperframe);
+                  iptr -= blen;
+              }
+              if (s == 0) { /* input complete */
+                  moreinput = 0;
+              }
+          }
+          if (wnext == 0)
+              break;    /* done */
+      }
+    } else if (access == SND_PCM_ACCESS_MMAP_INTERLEAVED) {
+      /* mmap access */
+      /* why does start threshold not work ??? */
+     if (verbose)
+         fprintf(stderr, "playhrt: Using mmap access.\n");
+     startcount = hwbufsize/(2*olen);
+     if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
+          fprintf(stderr, "Cannot get monotonic clock.\n");
+          exit(19);
+      }
+      if (verbose)
+         fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec)\n",
+                         mtime.tv_sec, mtime.tv_nsec);
+      sumavg= 0;
+      checktime = 0;
+      for (count=1, off=looperr; 1; count++, off+=looperr) {
+          /* start playing when half of hwbuffer is filled */
+          if (count == startcount)  snd_pcm_start(pcm_handle);
 
-        frames = olen;
-        if (off > 1.0) {
-            frames++;
-            off -= 1.0;
-        }
-        err = snd_pcm_mmap_begin(pcm_handle, &areas, &offset, &frames);
-        if (err < 0) {
-            fprintf(stderr, "Don't get mmap address.\n");
-            exit(21);
-        }
-        ilen = frames * bytesperframe;
-        iptr = areas[0].addr + offset * bytesperframe;
-        memclean(iptr, ilen);
-        /* we have first tried the following sequence:
-              s = read(sfd, buf, ilen);
-              clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
-              memcpy((void*)iptr, (void*)buf, s);
-              snd_pcm_mmap_commit(pcm_handle, offset, frames);
-           but a direct read without buffer buf and an immediate commit
-           after sleep seems better */
-        s = read(sfd, iptr, ilen);
-        /* compute time for next wakeup */
-        if (count == 1000)   /* reset when fully running */
-           clock_gettime(CLOCK_MONOTONIC, &mtime);
-        mtime.tv_nsec += nsec;
-        if (mtime.tv_nsec > 999999999) {
-          mtime.tv_nsec -= 1000000000;
-          mtime.tv_sec++;
-        }
-	refreshmem(iptr, s);
-        /* debug:  check that we really sleep to some time in the future */
-        if (verbose && count % 1024 == 0){
-             clock_gettime(CLOCK_MONOTONIC, &mtimecheck);
-             if (verbose > 1 && mtime.tv_sec == mtimecheck.tv_sec  && mtime.tv_nsec < mtimecheck.tv_nsec)
-                 fprintf(stderr, "playhrt: delay of %ld nsec (%ld sec %ld nsec)\n", mtimecheck.tv_nsec-mtime.tv_nsec, mtime.tv_sec, mtime.tv_nsec);
-        }
-        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
-	refreshmem(iptr, s);
-        snd_pcm_mmap_commit(pcm_handle, offset, frames);
-        if (s < 0) {
-            fprintf(stderr, "Read error.\n");
-            exit(22);
-        } else if (s < ilen) {
-            badreads++;
-            readmissing += (ilen-s);
-            if (verbose)
-                fprintf(stderr, "playhrt: bad read, %ld bytes missing at %ld.%ld \n", (ilen-s), mtime.tv_sec, mtime.tv_nsec);
-            if (badreads==4) {
-                fprintf(stderr, "playhrt: had 4 bad reads . . . exiting\n");
-                break;
-            }
-        }
-        icount += s;
-        ocount += s;
-        if (s == 0) /* done */
-            break;
+          frames = olen;
+          if (off > 1.0) {
+              frames++;
+              off -= 1.0;
+          }
+          avail = snd_pcm_avail_update(pcm_handle);
+          err = snd_pcm_mmap_begin(pcm_handle, &areas, &offset, &frames);
+          if (err < 0) {
+              fprintf(stderr, "Don't get mmap address.\n");
+              exit(21);
+          }
+
+          /* do some statistics to check average hwbuffer space available
+             to check and improve --extra-bytes-per-second parameter */
+          if (count > startcount && count % 4096 == 0) {
+              sumavg = 16;
+              avgav = 0;
+          }
+          if (sumavg) {
+              avgav += avail;
+              if (sumavg == 1) {
+                  if (verbose > 1)
+                      fprintf(stderr, "playhrt: average available buffer: %ld (%ld sec %ld nsec)\n", avgav/16, mtime.tv_sec, mtime.tv_nsec);
+                  if (checktime == 0.0 && count > startcount+30000) {
+                       checktime = 1.0*mtime.tv_sec + mtime.tv_nsec/1000000000.0;
+                       checkav = avgav/16;
+                       corr = 1;
+                  }
+                  if (corr && avgav/16 > checkav + hwbufsize*3/10) {
+                       extrabps += (double)((avgav/16-checkav)*bytesperframe)/(mtime.tv_sec*1.0+mtime.tv_nsec/1000000000.0-checktime);
+                       extraerr = 1.0*bytesperframe*rate;
+                       extraerr = extraerr/(extraerr+extrabps);
+                       nsec = (int) (1000000000*extraerr/loopspersec);
+                       corr = 0;
+                       fprintf(stderr, "playhrt: Avoiding buffer underrun! Please use option \n"
+                               "      --extra-bytes-per-second=%d\n"
+                               "on next call.\n", (int)extrabps);
+                  }
+                  if (corr && avgav/16 < checkav - hwbufsize*3/10) {
+                       extrabps += (double)((avgav/16-checkav)*bytesperframe)/(mtime.tv_sec*1.0+mtime.tv_nsec/1000000000.0-checktime);
+                       extraerr = 1.0*bytesperframe*rate;
+                       extraerr = extraerr/(extraerr+extrabps);
+                       nsec = (int) (1000000000*extraerr/loopspersec);
+                       corr = 0;
+                       fprintf(stderr, "playhrt: Avoiding buffer overrun! Please use option \n"
+                               "      --extra-bytes-per-second=%d\n"
+                               "on next call.\n", (int)extrabps);
+                  }
+              }
+              sumavg--;
+          }
+
+          ilen = frames * bytesperframe;
+          iptr = areas[0].addr + offset * bytesperframe;
+          /*memclean(iptr, ilen);  commented out to save some CPU-time */
+          /* in --mmap mode we read directly into mmaped space without internal buffer */
+          s = read(sfd, iptr, ilen);
+
+          /* compute time for next wakeup */
+          mtime.tv_nsec += nsec;
+          if (mtime.tv_nsec > 999999999) {
+            mtime.tv_nsec -= 1000000000;
+            mtime.tv_sec++;
+          }
+
+
+          /* we refresh the new data before and directly after the  sleep before commiting */
+          refreshmem(iptr, s);
+
+          /* debug:  check that we really sleep to some time in the future */
+          clock_gettime(CLOCK_MONOTONIC, &mtimecheck);
+          if (mtimecheck.tv_sec > mtime.tv_sec || (mtimecheck.tv_sec == mtime.tv_sec && mtimecheck.tv_nsec > mtime.tv_nsec))
+              nrdelays += 1;
+          if (verbose > 1 && nrdelays > 0 && count % 4096 == 0) {
+              fprintf(stderr, "playhrt: number of delayed loops: %ld (%ld sec %ld nsec)\n", nrdelays, mtime.tv_sec, mtime.tv_nsec);
+          }
+
+          clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
+	  refreshmem(iptr, s);
+          snd_pcm_mmap_commit(pcm_handle, offset, frames);
+          if (s < 0) {
+              fprintf(stderr, "Read error.\n");
+              exit(22);
+          } else if (s < ilen) {
+              badreads++;
+              readmissing += (ilen-s);
+              if (verbose)
+                  fprintf(stderr, "playhrt: bad read, %ld bytes missing at %ld.%ld \n", (ilen-s), mtime.tv_sec, mtime.tv_nsec);
+              if (badreads==4) {
+                  fprintf(stderr, "playhrt: had 4 bad reads . . . exiting\n");
+                  break;
+              }
+          }
+          icount += s;
+          ocount += s;
+          if (s == 0) /* done */
+              break;
+      }
     }
-  }
     /* cleanup network connection and sound device */
     close(sfd);
     snd_pcm_drain(pcm_handle);
@@ -791,8 +784,9 @@ int main(int argc, char *argv[])
                              "      --extra-bytes-per-second=%d\n"
                              "on future calls.\n", (int)(extrabps+morebps));
         }
-        fprintf(stderr, "playhrt: Loops: %ld, total bytes: %lld in %lld out. \n      Bad loops/frames written: %ld/%lld,  bad reads/bytes: %ld/%ld\n",
-                    count, icount, ocount, badloops, badframes, badreads, readmissing);
+        fprintf(stderr, "playhrt: Loops: %ld (%ld delayed), total bytes: %lld in %lld out. \n"
+                        "      Bad loops/frames written: %ld/%lld,  bad reads/bytes: %ld/%ld\n",
+                    count, nrdelays, icount, ocount, badloops, badframes, badreads, readmissing);
     }
     return 0;
 }
