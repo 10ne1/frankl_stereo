@@ -162,7 +162,8 @@ int main(int argc, char *argv[])
 {
     struct sockaddr_in serv_addr;
     int listenfd, connfd, ifd, s, moreinput, optval=1, verbose, rate,
-        extrabps, bytesperframe, optc, interval, shared;
+        extrabps, bytesperframe, optc, interval, shared, innetbufsize, 
+        outnetbufsize;
     long blen, hlen, ilen, olen, outpersec, loopspersec, nsec, count, wnext,
          badreads, badreadbytes, badwrites, badwritebytes, lcount;
     long long icount, ocount;
@@ -194,6 +195,8 @@ int main(int argc, char *argv[])
         {"port-to-read", required_argument, 0, 'P' },
         {"shared", no_argument, 0, 'S' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
+        {"in-net-buffer-size", required_argument, 0, 'K' },
+        {"out-net-buffer-size", required_argument, 0, 'L' },
         {"overwrite", required_argument, 0, 'O' }, /* not used, ignored */
         {"interval", no_argument, 0, 'I' },
         {"verbose", no_argument, 0, 'v' },
@@ -225,6 +228,8 @@ int main(int argc, char *argv[])
     shared = 0;
     interval = 0;
     extrabps = 0;
+    innetbufsize = 0;
+    outnetbufsize = 0;
     verbose = 0;
     while ((optc = getopt_long(argc, argv, "p:o:b:i:n:m:s:f:F:H:P:e:vVh",
             longoptions, &optind)) != -1) {
@@ -288,6 +293,16 @@ int main(int argc, char *argv[])
         case 'e':
           extrabps = atof(optarg);
           break;
+        case 'K':
+          innetbufsize = atoi(optarg);
+          if (innetbufsize != 0 && innetbufsize < 128)
+              innetbufsize = 128;
+          break;
+        case 'L':
+          outnetbufsize = atoi(optarg);
+          if (outnetbufsize != 0 && outnetbufsize < 128)
+              outnetbufsize = 128;
+          break;
         case 'O':
           break;   /* ignored */
         case 'I':
@@ -318,6 +333,12 @@ int main(int argc, char *argv[])
     }
     if (inhost != NULL && inport != NULL) {
        ifd = fd_net(inhost, inport);
+        if (innetbufsize != 0  &&
+            setsockopt(ifd, SOL_SOCKET, SO_RCVBUF, (void*)&innetbufsize, sizeof(int)) < 0) {
+                fprintf(stderr, "playhrt: cannot set buffer size for network socket to %d.\n",
+                        innetbufsize);
+                exit(23);
+        }
     }
     if (verbose) {
        fprintf(stderr, "bufhrt: Writing %ld bytes per second to ", outpersec);
@@ -394,6 +415,13 @@ int main(int argc, char *argv[])
         {
             fprintf(stderr, "Cannot set REUSEADDR.\n");
             exit(10);
+        }
+        if (outnetbufsize != 0 && setsockopt(listenfd,
+                       SOL_SOCKET,SO_SNDBUF,&outnetbufsize,sizeof(int)) == -1)
+        {
+            fprintf(stderr, "Cannot set outgoing network buffer to %d.\n",
+                    outnetbufsize);
+            exit(30);
         }
         memset(&serv_addr, '0', sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
@@ -527,7 +555,7 @@ int main(int argc, char *argv[])
              /* write a chunk, this comes first after waking from sleep */
              s = write(connfd, ptr, c);
              if (s < 0) {
-                 fprintf(stderr, "bufhrt (from shared): Write error.\n");
+                 fprintf(stderr, "bufhrt (from shared): Write error: %s\n", strerror(errno));
                  exit(15);
              }
              if (s < c) {
