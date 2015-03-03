@@ -785,7 +785,7 @@ int main(int argc, char *argv[])
                              "on future calls.\n", (int)(extrabps+morebps));
         }
         fprintf(stderr, "playhrt: Loops: %ld (%ld delayed), total bytes: %lld in %lld out. \n"
-                        "      Bad loops/frames written: %ld/%lld,  bad reads/bytes: %ld/%ld\n",
+                        "playhrt: Bad loops/frames written: %ld/%lld,  bad reads/bytes: %ld/%ld\n",
                     count, nrdelays, icount, ocount, badloops, badframes, badreads, readmissing);
     }
     return 0;
