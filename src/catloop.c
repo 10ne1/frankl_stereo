@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
            /* open semaphore with same name as memory */
            if ((sems[i-optind] = sem_open(fnames[i-optind], O_RDWR))
                                                         == SEM_FAILED) {
-               fprintf(stderr, "Cannot open semaphore.");
+               fprintf(stderr, "Cannot open semaphore: %s\n", strerror(errno));
                exit(20);
            }
            /* also semaphore for write lock */
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
            strncat(tmpnames[i-optind], ".TMP", 4);
            if ((semsw[i-optind] = sem_open(tmpnames[i-optind], O_RDWR))
                                                          == SEM_FAILED) {
-               fprintf(stderr, "Cannot open write semaphore.");
+               fprintf(stderr, "Cannot open write semaphore: %s\n", strerror(errno));
                exit(21);
            }
            /* open shared memory */
