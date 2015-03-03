@@ -58,6 +58,7 @@ inline void memclean(char* ptr, int n)
 
 #else
 
+#include <stdint.h>
 /* default version in C, compile with -O0, such that this is not
    optimized away */
 inline void refreshmem(char* ptr, int n)
@@ -66,7 +67,7 @@ inline void refreshmem(char* ptr, int n)
   int i, sz, off;
   unsigned int x, d, *up;
   sz = sizeof(unsigned int);
-  off = (unsigned int)ptr % sz;
+  off = (uintptr_t)ptr % sz;
   for(i=0, up=(unsigned int*)(ptr-off); i < (n+off)/sz; i++) {
       x = *up;
       d = 0xFFFFFFFF;
@@ -80,7 +81,7 @@ inline void memclean(char* ptr, int n)
   int i, off, n0, sz;
   unsigned int *up;
   sz = sizeof(int);
-  off = (unsigned int)ptr % sz;
+  off = (uintptr_t)ptr % sz;
   if (off > 0) {
     off = sz-off;
     for (i=0; i < off; i++) ptr[i] = 0;
