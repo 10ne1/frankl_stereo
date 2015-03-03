@@ -15,6 +15,7 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
@@ -397,7 +398,7 @@ int main(int argc, char *argv[])
                 blen+ilen+olen);
         exit(6);
     }
-    while (((uint)buf % 8) != 0) buf++;
+    while (((uintptr_t)buf % 8) != 0) buf++;
     buf = buf + 2*olen;
     max = buf + blen;
     iptr = buf;
