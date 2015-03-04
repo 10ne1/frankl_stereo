@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
     if (ftruncate(fd, length) == -1) {
-        fprintf(stderr, "Cannot truncate shared memory to %d.", length);
+        fprintf(stderr, "Cannot truncate shared memory to %ld.", (long)length);
         exit(5);
     }
     mem = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -200,8 +200,8 @@ int main(int argc, char *argv[])
     }
     if (done < length) {
       if (ftruncate(fd, done) == -1) {
-          fprintf(stderr, "Cannot truncate shared memory to true length %d.", 
-                          done);
+          fprintf(stderr, "Cannot truncate shared memory to true length %ld.", 
+                          (long)done);
           exit(7);
       }
     }
