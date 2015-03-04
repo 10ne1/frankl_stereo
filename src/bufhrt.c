@@ -194,7 +194,8 @@ int main(int argc, char *argv[])
         {"file", required_argument, 0, 'F' },
         {"host-to-read", required_argument, 0, 'H' },
         {"port-to-read", required_argument, 0, 'P' },
-        {"shared", no_argument, 0, 'S' },
+        {"stdin", no_argument, 0, 'S' },
+        {"shared", no_argument, 0, 'M' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
         {"in-net-buffer-size", required_argument, 0, 'K' },
         {"out-net-buffer-size", required_argument, 0, 'L' },
@@ -289,6 +290,9 @@ int main(int argc, char *argv[])
           inport = optarg;
           break;
         case 'S':
+          ifd = 0;
+          break;
+        case 'M':
           shared = 1;
           break;
         case 'e':
