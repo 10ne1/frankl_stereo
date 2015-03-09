@@ -320,7 +320,7 @@ int main(int argc, char *argv[])
              format = SND_PCM_FORMAT_S32_LE;
              bytespersample = 4;
           } else {
-             fprintf(stderr, "Sample format %s not recognized.\n", optarg);
+             fprintf(stderr, "playhrt: Sample format %s not recognized.\n", optarg);
              exit(1);
           }
           break;
@@ -375,7 +375,7 @@ int main(int argc, char *argv[])
     bytesperframe = bytespersample*nrchannels;
     /* check some arguments and set some parameters */
     if ((host == NULL || port == NULL) && sfd < 0) {
-       fprintf(stderr, "Must give --host and --port or --stdin.\n");
+       fprintf(stderr, "playhrt: Must give --host and --port or --stdin.\n");
        exit(3);
     }
     /* compute nanoseconds per loop (wrt local clock) */
@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
 
     /* need blen plus some overlap for (circular) input buffer */
     if (! (buf = malloc(blen+ilen+(olen+extra)*bytesperframe)) ) {
-        fprintf(stderr, "Cannot allocate buffer of length %ld.\n",
+        fprintf(stderr, "playhrt: Cannot allocate buffer of length %ld.\n",
                 blen+ilen+(olen+extra)*bytesperframe);
         exit(2);
     }
@@ -446,41 +446,41 @@ int main(int argc, char *argv[])
     /* setup sound device */
     snd_pcm_hw_params_malloc(&hwparams);
     if (snd_pcm_open(&pcm_handle, pcm_name, SND_PCM_STREAM_PLAYBACK, 0) < 0) {
-        fprintf(stderr, "Error opening PCM device %s\n", pcm_name);
+        fprintf(stderr, "playhrt: Error opening PCM device %s\n", pcm_name);
         exit(5);
     }
     if (nonblock) {
         if (snd_pcm_nonblock(pcm_handle, 1) < 0) {
-            fprintf(stderr, "Cannot set non-block mode.\n");
+            fprintf(stderr, "playhrt: Cannot set non-block mode.\n");
             exit(6);
         } else if (verbose) {
             fprintf(stderr, "playhrt: Accessing card in non-block mode.\n");
         }
     }
     if (snd_pcm_hw_params_any(pcm_handle, hwparams) < 0) {
-        fprintf(stderr, "Can not configure this PCM device.\n");
+        fprintf(stderr, "playhrt: Can not configure this PCM device.\n");
         exit(7);
     }
     if (snd_pcm_hw_params_set_access(pcm_handle, hwparams, access) < 0) {
-        fprintf(stderr, "Error setting access.\n");
+        fprintf(stderr, "playhrt: Error setting access.\n");
         exit(8);
     }
     if (snd_pcm_hw_params_set_format(pcm_handle, hwparams, format) < 0) {
-        fprintf(stderr, "Error setting format.\n");
+        fprintf(stderr, "playhrt: Error setting format.\n");
         exit(9);
     }
     if (snd_pcm_hw_params_set_rate(pcm_handle, hwparams, rate, 0) < 0) {
-        fprintf(stderr, "Error setting rate.\n");
+        fprintf(stderr, "playhrt: Error setting rate.\n");
         exit(10);
     }
     if (snd_pcm_hw_params_set_channels(pcm_handle, hwparams, nrchannels) < 0) {
-        fprintf(stderr, "Error setting channels to %d.\n", nrchannels);
+        fprintf(stderr, "playhrt: Error setting channels to %d.\n", nrchannels);
         exit(11);
     }
     if (periodsize != 0) {
       if (snd_pcm_hw_params_set_period_size(
                                 pcm_handle, hwparams, periodsize, 0) < 0) {
-          fprintf(stderr, "Error setting period size to %ld.\n", periodsize);
+          fprintf(stderr, "playhrt: Error setting period size to %ld.\n", periodsize);
           exit(11);
       }
       if (verbose) {
@@ -497,7 +497,7 @@ int main(int argc, char *argv[])
     }
     if (snd_pcm_hw_params_set_buffer_size(pcm_handle, hwparams,
                                                       hwbufsize) < 0) {
-        fprintf(stderr, "Error setting buffersize to %ld.\n", hwbufsize);
+        fprintf(stderr, "playhrt: Error setting buffersize to %ld.\n", hwbufsize);
         exit(12);
     }
     snd_pcm_hw_params_get_buffer_size(hwparams, &hwbufsize);
@@ -505,25 +505,25 @@ int main(int argc, char *argv[])
         fprintf(stderr, " using %ld.\n", hwbufsize);
     }
     if (snd_pcm_hw_params(pcm_handle, hwparams) < 0) {
-        fprintf(stderr, "Error setting HW params.\n");
+        fprintf(stderr, "playhrt: Error setting HW params.\n");
         exit(13);
     }
     snd_pcm_hw_params_free(hwparams);
     if (snd_pcm_sw_params_malloc (&swparams) < 0) {
-        fprintf(stderr, "Cannot allocate SW params.\n");
+        fprintf(stderr, "playhrt: Cannot allocate SW params.\n");
         exit(14);
     }
     if (snd_pcm_sw_params_current(pcm_handle, swparams) < 0) {
-        fprintf(stderr, "Cannot get current SW params.\n");
+        fprintf(stderr, "playhrt: Cannot get current SW params.\n");
         exit(15);
     }
     if (snd_pcm_sw_params_set_start_threshold(pcm_handle,
                                           swparams, hwbufsize/2) < 0) {
-        fprintf(stderr, "Cannot set start threshold.\n");
+        fprintf(stderr, "playhrt: Cannot set start threshold.\n");
         exit(16);
     }
     if (snd_pcm_sw_params(pcm_handle, swparams) < 0) {
-        fprintf(stderr, "Cannot apply SW params.\n");
+        fprintf(stderr, "playhrt: Cannot apply SW params.\n");
         exit(17);
     }
     snd_pcm_sw_params_free (swparams);
@@ -544,7 +544,7 @@ int main(int argc, char *argv[])
           memclean(iptr, ilen);
           s = read(sfd, iptr, ilen);
           if (s < 0) {
-              fprintf(stderr, "Read error.\n");
+              fprintf(stderr, "playhrt: Read error.\n");
               exit(18);
           }
           icount += s;
@@ -560,7 +560,7 @@ int main(int argc, char *argv[])
           wnext = olen;
 
       if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
-          fprintf(stderr, "Cannot get monotonic clock.\n");
+          fprintf(stderr, "playhrt: Cannot get monotonic clock.\n");
           exit(19);
       }
       if (verbose)
@@ -590,7 +590,7 @@ int main(int argc, char *argv[])
               s = snd_pcm_recover(pcm_handle, s, 0);
               if (s < 0) {
                   snd_pcm_prepare(pcm_handle);
-                  fprintf(stderr, "<<<<< Cannot write, resetted >>>>\n");
+                  fprintf(stderr, "playhrt: <<<<< Cannot write, resetted >>>>\n");
               }
               clock_gettime(CLOCK_MONOTONIC, &mtime);
               if (verbose)
@@ -632,7 +632,7 @@ int main(int argc, char *argv[])
               memclean(iptr, ilen);
               s = read(sfd, iptr, ilen);
               if (s < 0) {
-                  fprintf(stderr, "Read error.\n");
+                  fprintf(stderr, "playhrt: Read error.\n");
                   exit(20);
               } else if (s < ilen) {
                   badreads++;
@@ -661,7 +661,7 @@ int main(int argc, char *argv[])
          fprintf(stderr, "playhrt: Using mmap access.\n");
      startcount = hwbufsize/(2*olen);
      if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
-          fprintf(stderr, "Cannot get monotonic clock.\n");
+          fprintf(stderr, "playhrt: Cannot get monotonic clock.\n");
           exit(19);
       }
       if (verbose)
@@ -681,7 +681,7 @@ int main(int argc, char *argv[])
           avail = snd_pcm_avail_update(pcm_handle);
           err = snd_pcm_mmap_begin(pcm_handle, &areas, &offset, &frames);
           if (err < 0) {
-              fprintf(stderr, "Don't get mmap address.\n");
+              fprintf(stderr, "playhrt: Don't get mmap address.\n");
               exit(21);
           }
 
@@ -754,7 +754,7 @@ int main(int argc, char *argv[])
 	  refreshmem(iptr, s);
           snd_pcm_mmap_commit(pcm_handle, offset, frames);
           if (s < 0) {
-              fprintf(stderr, "Read error.\n");
+              fprintf(stderr, "playhrt: Read error.\n");
               exit(22);
           } else if (s < ilen) {
               badreads++;
