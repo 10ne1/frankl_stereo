@@ -1,4 +1,4 @@
-/*  cptoshm.c     copy file into shared memory 
+/*  cptoshm.c     copy file into shared memory
     gcc -Wall -O0 -o cptoshm cptoshm.c -lrt
 */
 #include "version.h"
@@ -116,20 +116,20 @@ int main(int argc, char *argv[])
           if (strcmp(infile, "-")==0)
             break;
           if ((ifd = open(infile, O_RDONLY)) == -1) {
-              fprintf(stderr, "Cannot open input file %s.\n", infile);
+              fprintf(stderr, "cptoshm: Cannot open input file %s.\n", infile);
               exit(2);
           }
           if (fstat(ifd, &sb) == -1) {
-              fprintf(stderr, "Cannot stat input file %s.\n", infile);
+              fprintf(stderr, "cptoshm: Cannot stat input file %s.\n", infile);
               exit(4);
           }
           length = sb.st_size;
           break;
         case 'o':
           memname = optarg;
-          if ((fd = shm_open(memname, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) 
+          if ((fd = shm_open(memname, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR))
                                                                       == -1){
-              fprintf(stderr, "Cannot open memory %s.\n", memname);
+              fprintf(stderr, "cptoshm: Cannot open memory %s.\n", memname);
               exit(3);
           }
           break;
@@ -158,27 +158,27 @@ int main(int argc, char *argv[])
         infile = "stdin";
     }
     if (verbose) {
-        fprintf(stderr, 
+        fprintf(stderr,
                 "cptoshm: input from %s, shared mem is %s, max length %ld\n",
                 infile, memname, (long)length);
     }
     if (! (buf = malloc(bufsize)) ) {
-        fprintf(stderr, "Cannot allocate buffer of length %ld.\n", 
+        fprintf(stderr, "cptoshm: Cannot allocate buffer of length %ld.\n",
                         (long)bufsize);
         exit(1);
     }
     if (ftruncate(fd, length) == -1) {
-        fprintf(stderr, "Cannot truncate shared memory to %ld.", (long)length);
+        fprintf(stderr, "cptoshm: Cannot truncate shared memory to %ld.", (long)length);
         exit(5);
     }
     mem = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mem == MAP_FAILED) {
-        fprintf(stderr, "Cannot map shared memory.");
+        fprintf(stderr, "cptoshm: Cannot map shared memory.");
         exit(6);
     }
     /* clear memory */
     if (verbose) {
-        fprintf(stderr, "cptoshm: clearing memory ... "); 
+        fprintf(stderr, "cptoshm: clearing memory ... ");
         fflush(stderr);
     }
     memclean(mem, length);
@@ -200,12 +200,12 @@ int main(int argc, char *argv[])
     }
     if (done < length) {
       if (ftruncate(fd, done) == -1) {
-          fprintf(stderr, "Cannot truncate shared memory to true length %ld.", 
+          fprintf(stderr, "cptoshm: Cannot truncate shared memory to true length %ld.",
                           (long)done);
           exit(7);
       }
     }
-    if (verbose) 
+    if (verbose)
         fprintf(stderr, "cptoshm: copied %ld bytes.\n", (long)done);
     exit(0);
 }
