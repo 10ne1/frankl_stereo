@@ -1,0 +1,36 @@
+#!/bin/bash 
+
+#########################################################################
+##  frankl (C) 2015              play_writecatloop
+##
+##  See README or http://frank_l.bitbucket.org/stereoutils/player.html
+##  for explanations.
+#########################################################################
+
+CARD="hw:0,0"
+EXTRABYTESPLAY=0
+VERBOSE="--verbose --verbose"
+
+trap "trap - SIGTERM && kill -- -$$ " SIGINT SIGTERM EXIT
+
+rm -f /dev/shm/bl{1,2,3} /dev/shm/sem.bl{1,2,3}* 
+sox  "$1" -t raw -r 44100 -c 2 -e signed -b 16 - | \
+      writeloop --block-size=1024 --file-size=4096 --shared /bl1 /bl2 /bl3 &
+
+# maybe the start of the background command takes a little time
+sleep 0.1
+
+catloop --block-size=1024 --shared /bl1 /bl2 /bl3 | \
+      playhrt \
+           --stdin \
+           --device=${CARD} \
+           --sample-rate=44100 \
+           --sample-format=S16_LE \
+           --loops-per-second=1000 \
+           --mmap \
+           --non-blocking-write \
+           ${VERBOSE} \
+           --extra-bytes-per-second=${EXTRABYTESPLAY} \
+           --hw-buffer=16384
+
+

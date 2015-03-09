@@ -1,0 +1,20 @@
+#!/bin/bash
+
+#########################################################################
+##  frankl (C) 2015
+##  
+##  USAGE:
+##    improvefile <orig> <new>
+##  This script generates a (bit-identical) copy of a file <orig> to
+##  the file <new>.
+##  
+#########################################################################
+
+if test -e "$2" ; then
+  echo "the file $2 already exists, please delete it first"
+  exit
+fi
+
+bufhrt --file="$1" --outfile="$2" --buffer-size=50000000 \
+       --loops-per-second=2000 --bytes-per-second=6144000 --interval 
+

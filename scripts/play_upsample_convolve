@@ -1,0 +1,49 @@
+#!/bin/bash 
+
+#########################################################################
+##  frankl (C) 2015              play_upsample_convolve
+##
+##  See README or http://frank_l.bitbucket.org/stereoutils/player.html
+##  for explanations.
+#########################################################################
+
+CARD="hw:0,0"
+EXTRABYTESPLAY=0
+SAMPLERATE=192000
+BRUTEFIRCONFIG=<your brutefir config file>
+VERBOSE="--verbose --verbose"
+
+# find input sample rate
+ORIGRATE=`sox --i "$1" | grep "Sample Rate" | cut -d: -f2 | sed -e "s/ //g"`
+
+trap "trap - SIGTERM && kill -- -$$ " SIGINT SIGTERM EXIT
+
+rm -f /dev/shm/bl{1,2,3} /dev/shm/sem.bl{1,2,3}* 
+
+if ! test -e /tmp/VOLRACE ; then
+  echo "0.6 4 0.75" > /tmp/VOLRACE
+fi
+
+sox  "$1" -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - | \
+      sox -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - \
+          -t raw - vol 0.8 rate -v -I ${SAMPLERATE} | \
+      volrace --param-file=/tmp/VOLRACE | \
+      brutefir ${BRUTEFIRCONFIG} -quiet | \
+      writeloop --block-size=1024 --file-size=4096 --shared /bl1 /bl2 /bl3 &
+
+# allow some startup time for background command
+sleep 0.5
+
+catloop --block-size=1024 --shared /bl1 /bl2 /bl3 | \
+      playhrt \
+           --stdin \
+           --device=${CARD} \
+           --sample-rate=${SAMPLERATE} \
+           --sample-format=S32_LE \
+           --loops-per-second=1000 \
+           --mmap \
+           --non-blocking-write \
+           ${VERBOSE} \
+           --extra-bytes-per-second=${EXTRABYTESPLAY} \
+           --hw-buffer=8192
+

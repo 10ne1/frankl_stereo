@@ -1,0 +1,14 @@
+#!/bin/bash 
+
+#########################################################################
+##  frankl (C) 2015              listen_loop
+##
+##  See README or http://frank_l.bitbucket.org/stereoutils/player.html
+##  for explanations.
+#########################################################################
+
+while true; do
+  command=`nc -l -p 5501` 
+  eval "$command"
+done 
+

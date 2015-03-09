@@ -1,0 +1,26 @@
+#!/bin/bash
+
+#########################################################################
+##  frankl (C) 2015              play_simple
+##
+##  See README or http://frank_l.bitbucket.org/stereoutils/player.html
+##  for explanations.
+#########################################################################
+
+CARD="hw:0,0"
+EXTRABYTESPLAY=0
+VERBOSE="--verbose --verbose"
+
+sox  "$1" -t raw -r 44100 -c 2 -e signed -b 16 - | playhrt \
+      --stdin \
+      --device=${CARD} \
+      --sample-rate=44100 \
+      --sample-format=S16_LE \
+      --loops-per-second=1000 \
+      --mmap \
+      --non-blocking-write \
+      ${VERBOSE} \
+      --extra-bytes-per-second=${EXTRABYTESPLAY} \
+      --hw-buffer=16384
+
+

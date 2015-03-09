@@ -1,0 +1,71 @@
+#!/bin/bash 
+
+#########################################################################
+##  frankl (C) 2015              play_remote_ssh
+##
+##  See README or http://frank_l.bitbucket.org/stereoutils/player.html
+##  for explanations.
+#########################################################################
+
+CARD="hw:0,0"
+EXTRABYTESBUF=200
+EXTRABYTESPLAY=0
+VERBOSE="--verbose --verbose"
+AUDIOCOMPUTER=<name of your audio computer>
+SAMPLERATE=192000
+SAMPLEFORMAT=S32_LE
+# this is 192000 * 4 * 2 (32 bit samples, 2 channels)
+BYTESPERSECOND=1536000
+BRUTEFIRCONFIG=<path to your brutefir configuration>
+HOST=`hostname`
+PORT=5570
+PLAYHRTLOGFILE=/tmp/playhrt.log
+
+# find input sample rate
+ORIGRATE=`sox --i "$1" | grep "Sample Rate" | cut -d: -f2 | sed -e "s/ //g"`
+
+trap "trap - SIGTERM && kill -- -$$ " SIGINT SIGTERM EXIT
+
+cptoshm --file="$1" --shmname=/play.flac
+
+rm -f /dev/shm/bl{1,2,3} /dev/shm/sem.bl{1,2,3}* 
+
+if ! test -e /tmp/VOLRACE ; then
+  echo "0.6 4 0.75" > /tmp/VOLRACE
+fi
+
+shmcat /play.flac 32768 |
+      sox  -t flac -  -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - | \
+      sox -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - \
+          -t raw - vol 0.8 rate -v -I ${SAMPLERATE} | \
+      volrace --param-file=/tmp/VOLRACE | \
+      brutefir ${BRUTEFIRCONFIG} -quiet | \
+      writeloop --block-size=1536 --file-size=9216 --shared /bl1 /bl2 /bl3 &
+
+sleep 0.5
+
+# tell audio computer what to do 
+REMOTE="nohup sleep 0.8 >/dev/null 2>/dev/null </dev/null ;\
+        nohup playhrt ${VERBOSE} --host=${HOST} --port=${PORT} \
+                     --sample-rate=${SAMPLERATE} \
+                     --sample-format=${SAMPLEFORMAT} \
+                     --loops-per-second=1000 \
+                     --device=${CARD} --hw-buffer=7680 \
+                     --extra-bytes-per-second=${EXTRABYTESPLAY} \
+                     --non-blocking-write --mmap \
+                     >/dev/null 2>${PLAYHRTLOGFILE} </dev/null "
+
+#echo "${REMOTE}" |  nc -q 0 ${AUDIOCOMPUTER} 5501 
+
+REMOTE='sh -c "( (  '${REMOTE}' ) & )"'
+
+echo "${REMOTE}"
+
+ssh ${AUDIOCOMPUTER} "${REMOTE}"
+
+bufhrt --bytes-per-second=${BYTESPERSECOND} \
+       --loops-per-second=2000 --port-to-write=${PORT} \
+       --extra-bytes-per-second=${EXTRABYTESBUF} \
+       ${VERBOSE} \
+       --shared /bl1 /bl2 /bl3 
+
