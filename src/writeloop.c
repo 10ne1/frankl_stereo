@@ -1,5 +1,5 @@
 /*
-writeloop.c                Copyright frankl 2013-2014
+writeloop.c                Copyright frankl 2013-2015
 
 This file is part of frankl's stereo utilities.
 See the file License.txt of the distribution and
@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
           break;
         case 'F':
           if ((inp = open(optarg, O_RDONLY)) == -1) {
-            fprintf(stderr, "Cannot open input file %s.\n", optarg);
+            fprintf(stderr, "writeloop: Cannot open input file %s.\n", optarg);
             exit(3);
           }
           break;
@@ -165,17 +165,17 @@ int main(int argc, char *argv[])
     }
     buf = malloc(blocksize);
     if (! buf) {
-       fprintf(stderr, "Cannot allocate buffer.\n");
+       fprintf(stderr, "writeloop: Cannot allocate buffer.\n");
        exit(4);
     }
     if (argc-optind < 1) {
-       fprintf(stderr, "Specify at least two filenames.\n");
+       fprintf(stderr, "writeloop: Specify at least two filenames.\n");
        exit(5);
     }
 
     for (i=optind; i < argc; i++) {
        if (i>100) {
-          fprintf(stderr, "Too many filenames.");
+          fprintf(stderr, "writeloop: Too many filenames.");
           exit(6);
        }
        fnames[i-optind] = argv[i];
@@ -183,25 +183,25 @@ int main(int argc, char *argv[])
            /* open semaphore with same name as memory */
            if ((sems[i-optind] = sem_open(fnames[i-optind], O_CREAT | O_EXCL,
                                                     0666, 0)) == SEM_FAILED) {
-               fprintf(stderr, "Cannot open semaphore.");
+               fprintf(stderr, "writeloop: Cannot open semaphore.");
                exit(20);
            }
            /* open shared memory */
            if ((fd[i-optind] = shm_open(fnames[i-optind],
                                O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) == -1){
-               fprintf(stderr, "Cannot open shared memory %s.\n", fnames[i-optind]);
+               fprintf(stderr, "writeloop: Cannot open shared memory %s.\n", fnames[i-optind]);
                exit(22);
            }
            /* truncate to size plus info about used memory */
            if (ftruncate(fd[i-optind], sizeof(int)+size) == -1) {
-               fprintf(stderr, "Cannot truncate to %d.", size);
+               fprintf(stderr, "writeloop: Cannot truncate to %d.", size);
                exit(23);
            }
            /* map the memory */
            mems[i-optind] = mmap(NULL, sizeof(int)+size,
                            PROT_READ | PROT_WRITE, MAP_SHARED, fd[i-optind], 0);
            if (mems[i-optind] == MAP_FAILED) {
-               fprintf(stderr, "Cannot map shared memory.");
+               fprintf(stderr, "writeloop: Cannot map shared memory.");
                exit(24);
            }
        } else
@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
            /* open semaphore with TMP name for write lock */
            if ((semsw[i-optind] = sem_open(tmpnames[i-optind], O_CREAT | O_EXCL,
                                                     0666, 0)) == SEM_FAILED) {
-               fprintf(stderr, "Cannot open write semaphore.");
+               fprintf(stderr, "writeloop: Cannot open write semaphore.");
                exit(21);
            }
            sem_post(semsw[i-optind]);
@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
              usleep(50000);
            outfile = open(*tmpname, O_WRONLY|O_CREAT|O_NOATIME, 00444);
            if (!outfile) {
-              fprintf(stderr, "Cannot open for writing: %s\n", *fname);
+              fprintf(stderr, "writeloop: Cannot open for writing: %s\n", *fname);
               exit(4);
            }
            if (c == 0) {
@@ -295,11 +295,11 @@ int main(int argc, char *argv[])
            while (c > 0 && sz <= size) {
               ret = write(outfile, buf, c);
               if (ret == -1) {
-                  fprintf(stderr, "write error: %s\n", strerror(errno));
+                  fprintf(stderr, "writeloop: write error: %s\n", strerror(errno));
                   exit(5);
               }
               if (ret < c) {
-                  fprintf(stderr, "Could not write full buffer.\n");
+                  fprintf(stderr, "writeloop: Could not write full buffer.\n");
                   exit(6);
               }
               c = read(inp, buf, blocksize);
