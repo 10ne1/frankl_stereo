@@ -1,5 +1,5 @@
 /*
-catloop.c                Copyright frankl 2013-2014
+catloop.c                Copyright frankl 2013-2015
 
 This file is part of frankl's stereo utilities.
 See the file License.txt of the distribution and
@@ -150,12 +150,12 @@ int main(int argc, char *argv[])
     }
     buf = malloc(blocksize);
     if (! buf) {
-       fprintf(stderr, "Cannot allocate buffer.\n");
+       fprintf(stderr, "catloop: Cannot allocate buffer.\n");
        exit(4);
     }
     for (i=optind; i < argc; i++) {
        if (i>100) {
-          fprintf(stderr, "Too many filenames.");
+          fprintf(stderr, "catloop: Too many filenames.");
           exit(6);
        }
        fnames[i-optind] = argv[i];
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
            /* open semaphore with same name as memory */
            if ((sems[i-optind] = sem_open(fnames[i-optind], O_RDWR))
                                                         == SEM_FAILED) {
-               fprintf(stderr, "Cannot open semaphore: %s\n", strerror(errno));
+               fprintf(stderr, "catloop: Cannot open semaphore: %s\n", strerror(errno));
                exit(20);
            }
            /* also semaphore for write lock */
@@ -172,18 +172,18 @@ int main(int argc, char *argv[])
            strncat(tmpnames[i-optind], ".TMP", 4);
            if ((semsw[i-optind] = sem_open(tmpnames[i-optind], O_RDWR))
                                                          == SEM_FAILED) {
-               fprintf(stderr, "Cannot open write semaphore: %s\n", strerror(errno));
+               fprintf(stderr, "catloop: Cannot open write semaphore: %s\n", strerror(errno));
                exit(21);
            }
            /* open shared memory */
            if ((fd[i-optind] = shm_open(fnames[i-optind],
                                O_RDONLY, S_IRUSR | S_IWUSR)) == -1){
-               fprintf(stderr, "Cannot open shared memory %s.\n", fnames[i-optind]);
+               fprintf(stderr, "catloop: Cannot open shared memory %s.\n", fnames[i-optind]);
                exit(22);
            }
            if (size == 0) { /* find size of shared memory chunks */
                if (fstat(fd[i-optind], &sb) == -1) {
-                   fprintf(stderr, "Cannot stat shared memory %s.\n", fnames[i-optind]);
+                   fprintf(stderr, "catloop: Cannot stat shared memory %s.\n", fnames[i-optind]);
                    exit(24);
                }
                size = sb.st_size - sizeof(int);
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
            mems[i-optind] = mmap(NULL, sizeof(int)+size,
                            PROT_READ, MAP_SHARED, fd[i-optind], 0);
            if (mems[i-optind] == MAP_FAILED) {
-               fprintf(stderr, "Cannot map shared memory.");
+               fprintf(stderr, "catloop: Cannot map shared memory.");
                exit(24);
            }
        }
@@ -239,11 +239,11 @@ int main(int argc, char *argv[])
                    c = blocksize;
                ret = write(1, ptr, c);
                if (ret == -1) {
-                  fprintf(stderr, "write error: %s\n", strerror(errno));
+                  fprintf(stderr, "catloop: write error: %s\n", strerror(errno));
                   exit(31);
                }
                if (ret < c) {
-                  fprintf(stderr, "Could not write block.\n");
+                  fprintf(stderr, "catloop: Could not write block.\n");
                   exit(32);
                }
                ptr += c;
@@ -265,7 +265,7 @@ int main(int argc, char *argv[])
              usleep(500);
            infile = open(*fname, O_RDONLY|O_NOATIME);
            if (!infile) {
-              fprintf(stderr, "Cannot open for reading: %s\n", *fname);
+              fprintf(stderr, "catloop: Cannot open for reading: %s\n", *fname);
               exit(2);
            }
            c = read(infile, buf, blocksize);
@@ -278,11 +278,11 @@ int main(int argc, char *argv[])
            while (c > 0) {
               ret = write(1, buf, c);
               if (ret == -1) {
-                  fprintf(stderr, "write error: %s\n", strerror(errno));
+                  fprintf(stderr, "catloop: write error: %s\n", strerror(errno));
                   exit(3);
               }
               if (ret < c) {
-                  fprintf(stderr, "Could not write full buffer.\n");
+                  fprintf(stderr, "catloop: Could not write full buffer.\n");
                   exit(4);
               }
               c = read(infile, buf, blocksize);
