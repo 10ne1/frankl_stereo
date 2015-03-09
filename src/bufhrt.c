@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
 {
     struct sockaddr_in serv_addr;
     int listenfd, connfd, ifd, s, moreinput, optval=1, verbose, rate,
-        extrabps, bytesperframe, optc, interval, shared, innetbufsize, 
+        extrabps, bytesperframe, optc, interval, shared, innetbufsize,
         outnetbufsize;
     long blen, hlen, ilen, olen, outpersec, loopspersec, nsec, count, wnext,
          badreads, badreadbytes, badwrites, badwritebytes, lcount;
@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
         case 'o':
           outfile = optarg;
           if ((connfd = open(outfile, O_WRONLY | O_CREAT, 00644)) == -1) {
-              fprintf(stderr, "Cannot open output file %s.\n   %s\n",
+              fprintf(stderr, "bufhrt: Cannot open output file %s.\n   %s\n",
                                outfile, strerror(errno));
               exit(3);
           }
@@ -272,14 +272,14 @@ int main(int argc, char *argv[])
           } else if (strcmp(optarg, "S32_LE")==0) {
              bytesperframe = 8;
           } else {
-             fprintf(stderr, "Sample format %s not recognized.\n", optarg);
+             fprintf(stderr, "bufhrt: Sample format %s not recognized.\n", optarg);
              exit(1);
           }
           break;
         case 'F':
           infile = optarg;
           if ((ifd = open(infile, O_RDONLY)) == -1) {
-              fprintf(stderr, "Cannot open input file %s.\n", infile);
+              fprintf(stderr, "bufhrt: Cannot open input file %s.\n", infile);
               exit(2);
           }
           break;
@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
        if (rate != 0 && bytesperframe != 0) {
            outpersec = rate * bytesperframe;
        } else {
-           fprintf(stderr, "Specify --bytes-per-second (or rate and format "
+           fprintf(stderr, "bufhrt: Specify --bytes-per-second (or rate and format "
                            "of audio data).\n");
            exit(5);
        }
@@ -340,7 +340,7 @@ int main(int argc, char *argv[])
        ifd = fd_net(inhost, inport);
         if (innetbufsize != 0  &&
             setsockopt(ifd, SOL_SOCKET, SO_RCVBUF, (void*)&innetbufsize, sizeof(int)) < 0) {
-                fprintf(stderr, "playhrt: cannot set buffer size for network socket to %d.\n",
+                fprintf(stderr, "bufhrt: cannot set buffer size for network socket to %d.\n",
                         innetbufsize);
                 exit(23);
         }
@@ -398,7 +398,7 @@ int main(int argc, char *argv[])
 
     /* we want buf % 8 = 0 */
     if (! (buf = malloc(blen+ilen+2*olen+8)) ) {
-        fprintf(stderr, "Cannot allocate buffer of length %ld.\n",
+        fprintf(stderr, "bufhrt: Cannot allocate buffer of length %ld.\n",
                 blen+ilen+olen);
         exit(6);
     }
@@ -412,19 +412,19 @@ int main(int argc, char *argv[])
     if (port != 0) {
         listenfd = socket(AF_INET, SOCK_STREAM, 0);
         if (listenfd < 0) {
-            fprintf(stderr, "Cannot create outgoing socket.\n");
+            fprintf(stderr, "bufhrt: Cannot create outgoing socket.\n");
             exit(9);
         }
         if (setsockopt(listenfd,
                        SOL_SOCKET,SO_REUSEADDR,&optval,sizeof(int)) == -1)
         {
-            fprintf(stderr, "Cannot set REUSEADDR.\n");
+            fprintf(stderr, "bufhrt: Cannot set REUSEADDR.\n");
             exit(10);
         }
         if (outnetbufsize != 0 && setsockopt(listenfd,
                        SOL_SOCKET,SO_SNDBUF,&outnetbufsize,sizeof(int)) == -1)
         {
-            fprintf(stderr, "Cannot set outgoing network buffer to %d.\n",
+            fprintf(stderr, "bufhrt: Cannot set outgoing network buffer to %d.\n",
                     outnetbufsize);
             exit(30);
         }
@@ -434,12 +434,12 @@ int main(int argc, char *argv[])
         serv_addr.sin_port = htons(atoi(port));
         if (bind(listenfd, (struct sockaddr*)&serv_addr,
                                               sizeof(serv_addr)) == -1) {
-            fprintf(stderr, "Cannot bind outgoing socket.\n");
+            fprintf(stderr, "bufhrt: Cannot bind outgoing socket.\n");
             exit(11);
         }
         listen(listenfd, 1);
         if ((connfd = accept(listenfd, (struct sockaddr*)NULL, NULL)) == -1) {
-            fprintf(stderr, "Cannot accept outgoing connection.\n");
+            fprintf(stderr, "bufhrt: Cannot accept outgoing connection.\n");
             exit(12);
         }
     }
@@ -451,7 +451,7 @@ int main(int argc, char *argv[])
       /* prepare shared memory */
       for (i=optind; i < argc; i++) {
          if (i>100) {
-            fprintf(stderr, "Too many filenames.");
+            fprintf(stderr, "bufhrt: Too many filenames.");
             exit(6);
          }
          fnames[i-optind] = argv[i];
@@ -459,7 +459,7 @@ int main(int argc, char *argv[])
              /* open semaphore with same name as memory */
              if ((sems[i-optind] = sem_open(fnames[i-optind], O_RDWR))
                                                           == SEM_FAILED) {
-                 fprintf(stderr, "Cannot open semaphore.");
+                 fprintf(stderr, "bufhrt: Cannot open semaphore.");
                  exit(20);
              }
              /* also semaphore for write lock */
@@ -468,18 +468,18 @@ int main(int argc, char *argv[])
              strncat(tmpnames[i-optind], ".TMP", 4);
              if ((semsw[i-optind] = sem_open(tmpnames[i-optind], O_RDWR))
                                                            == SEM_FAILED) {
-                 fprintf(stderr, "Cannot open write semaphore.");
+                 fprintf(stderr, "bufhrt: Cannot open write semaphore.");
                  exit(21);
              }
              /* open shared memory */
              if ((fd[i-optind] = shm_open(fnames[i-optind],
                                  O_RDWR, S_IRUSR | S_IWUSR)) == -1){
-                 fprintf(stderr, "Cannot open shared memory %s.\n", fnames[i-optind]);
+                 fprintf(stderr, "bufhrt: Cannot open shared memory %s.\n", fnames[i-optind]);
                  exit(22);
              }
              if (size == 0) { /* find size of shared memory chunks */
                  if (fstat(fd[i-optind], &sb) == -1) {
-                     fprintf(stderr, "Cannot stat shared memory %s.\n", fnames[i-optind]);
+                     fprintf(stderr, "bufhrt: Cannot stat shared memory %s.\n", fnames[i-optind]);
                      exit(24);
                  }
                  size = sb.st_size - sizeof(int);
@@ -488,7 +488,7 @@ int main(int argc, char *argv[])
              mems[i-optind] = mmap(NULL, sizeof(int)+size,
                              PROT_WRITE | PROT_READ, MAP_SHARED, fd[i-optind], 0);
              if (mems[i-optind] == MAP_FAILED) {
-                 fprintf(stderr, "Cannot map shared memory.");
+                 fprintf(stderr, "bufhrt: Cannot map shared memory.");
                  exit(24);
              }
          }
@@ -560,14 +560,14 @@ int main(int argc, char *argv[])
              /* write a chunk, this comes first after waking from sleep */
              s = write(connfd, ptr, c);
              if (s < 0) {
-                 fprintf(stderr, "bufhrt (from shared): Write error: %s\n", strerror(errno));
+                 fprintf(stderr, "bufhrt (from shared): Write error: %s\n",
+                                 strerror(errno));
                  exit(15);
              }
              if (s < c) {
                  badwrites++;
                  badwritebytes += (c-s);
                  off += (c-s);
-                 fprintf(stderr, "*%ld", (long)(c-s)); fflush(stderr);
              }
              ocount += c;
              ptr += c;
@@ -603,7 +603,7 @@ int main(int argc, char *argv[])
           for (iptr = buf; iptr < buf + 2*hlen - ilen; ) {
               s = read(ifd, iptr, ilen);
               if (s < 0) {
-                  fprintf(stderr, "Read error.\n");
+                  fprintf(stderr, "bufhrt: Read error.\n");
                   exit(18);
               }
               icount += s;
@@ -635,7 +635,7 @@ int main(int argc, char *argv[])
               /* write a chunk, this comes first after waking from sleep */
               s = write(connfd, optr, wnext);
               if (s < 0) {
-                  fprintf(stderr, "Write error.\n");
+                  fprintf(stderr, "bufhrt: Write error.\n");
                   exit(15);
               }
               ocount += s;
@@ -646,7 +646,7 @@ int main(int argc, char *argv[])
                  wnext++;
               }
               if (wnext >= 2*olen) {
-                 fprintf(stderr, "Underrun by %ld (%ld sec %ld nsec).\n",
+                 fprintf(stderr, "bufhrt: Underrun by %ld (%ld sec %ld nsec).\n",
                            wnext - 2*olen, mtime.tv_sec, mtime.tv_nsec);
                  wnext = 2*olen-1;
               }
@@ -673,7 +673,7 @@ int main(int argc, char *argv[])
     for (; iptr < buf + 2*hlen - ilen; ) {
         s = read(ifd, iptr, ilen);
         if (s < 0) {
-            fprintf(stderr, "Read error.\n");
+            fprintf(stderr, "bufhrt: Read error.\n");
             exit(13);
         }
         icount += s;
@@ -689,7 +689,7 @@ int main(int argc, char *argv[])
         wnext = olen;
 
     if (clock_gettime(CLOCK_MONOTONIC, &mtime) < 0) {
-        fprintf(stderr, "Cannot get monotonic clock.\n");
+        fprintf(stderr, "bufhrt: Cannot get monotonic clock.\n");
         exit(14);
     }
     if (verbose) {
@@ -721,7 +721,7 @@ int main(int argc, char *argv[])
         /* write a chunk, this comes first after waking from sleep */
         s = write(connfd, optr, wnext);
         if (s < 0) {
-            fprintf(stderr, "Write error.\n");
+            fprintf(stderr, "bufhrt: Write error.\n");
             exit(15);
         }
         if (s < wnext) {
@@ -736,7 +736,7 @@ int main(int argc, char *argv[])
            wnext++;
         }
         if (wnext >= 2*olen) {
-           fprintf(stderr, "Underrun by %ld (%ld sec %ld nsec).\n",
+           fprintf(stderr, "bufhrt: Underrun by %ld (%ld sec %ld nsec).\n",
                      wnext - 2*olen, mtime.tv_sec, mtime.tv_nsec);
            wnext = 2*olen-1;
         }
@@ -752,7 +752,7 @@ int main(int argc, char *argv[])
             memclean(iptr, ilen);
             s = read(ifd, iptr, ilen);
             if (s < 0) {
-                fprintf(stderr, "Read error.\n");
+                fprintf(stderr, "bufhrt: Read error.\n");
                 exit(16);
             }
             if (s < ilen) {
