@@ -1,8 +1,8 @@
 /*
 volrace.c                Copyright frankl 2013-2014
 
-This file is part of frankl's stereo utilities. 
-See the file License.txt of the distribution and 
+This file is part of frankl's stereo utilities.
+See the file License.txt of the distribution and
 http://www.gnu.org/licenses/gpl.txt for license details.
 */
 
@@ -23,7 +23,7 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 #define TRUE    1
 
 /* help page */
-/* vim hint to remove resp. add quotes: 
+/* vim hint to remove resp. add quotes:
       s/^"\(.*\)\\n"$/\1/
       s/.*$/"\0\\n"/
 */
@@ -151,7 +151,7 @@ double mtimens (char* fnam) {
     return (double)sb.st_mtim.tv_sec + (double) sb.st_mtim.tv_nsec*0.000000001;
 }
 
-/* read parameters for vol, delay, att from file 
+/* read parameters for vol, delay, att from file
    use init==1 during initialization, program will terminate in case of
    problem; later use init==0, if a problem occurs, the parameters are
    just left as they are                                                */
@@ -161,7 +161,7 @@ int getparams(char* fnam, double* vp, int* delay, double* att, int init) {
   params = fopen(fnam, "r");
   if (!params) {
      if (init) {
-       fprintf(stderr, "Cannot open %s\n", fnam);
+       fprintf(stderr, "volrace: Cannot open %s\n", fnam);
        fflush(stderr);
        exit(2);
      } else
@@ -171,12 +171,12 @@ int getparams(char* fnam, double* vp, int* delay, double* att, int init) {
   if (ok == EOF || ok == 0) {
      fclose(params);
      if (init) {
-       fprintf(stderr, "Cannot read parameters from  %s\n", fnam);
+       fprintf(stderr, "volrace: Cannot read parameters from  %s\n", fnam);
        fflush(stderr);
        exit(3);
      }  else
        return 0;
-  } 
+  }
   if (ok < 3) {
      /* allow only volume in file, disable RACE */
      *delay = 13;
@@ -189,19 +189,19 @@ int getparams(char* fnam, double* vp, int* delay, double* att, int init) {
 /* correct too bad values */
 void sanitizeparams(double maxvol, double* vp, int* delay, double* att, int bl){
   if (*vp < -maxvol || *vp > maxvol) {
-     fprintf(stderr, "Invalid vol, using %.4f\n", 0.01*maxvol); fflush(stderr);
+     fprintf(stderr, "volrace: Invalid vol, using %.4f\n", 0.01*maxvol); fflush(stderr);
      *vp = 0.01*maxvol;
   }
   if (*delay < 1 || *delay > MAXDELAY) {
-     fprintf(stderr, "Invalid delay, using 12\n"); fflush(stderr);
+     fprintf(stderr, "volrace: Invalid delay, using 12\n"); fflush(stderr);
      *delay = 12;
   }
   if (*att < -0.95 || *att > 0.95) {
-     fprintf(stderr, "Invalid att, using 0.0 (disabled)\n"); fflush(stderr);
+     fprintf(stderr, "volrace: Invalid att, using 0.0 (disabled)\n"); fflush(stderr);
      *att = 0.25;
   }
   if (bl < 2 * (*delay)) {
-     fprintf(stderr, "buffer to short for delay, using 12\n"); fflush(stderr);
+     fprintf(stderr, "volrace: buffer to short for delay, using 12\n"); fflush(stderr);
      *delay = 12;
   }
 }
@@ -241,10 +241,10 @@ int main(int argc, char *argv[])
   blen = 8192;
   fnam = NULL;
   maxvol = 1.0;
-  fadinglength = 44100; 
+  fadinglength = 44100;
   floatin = FALSE;
   floatout = FALSE;
-  while ((optc = getopt_long(argc, argv, "v:d:a:b:f:m:l:IOVh",  
+  while ((optc = getopt_long(argc, argv, "v:d:a:b:f:m:l:IOVh",
           longoptions, &optind)) != -1) {
       switch (optc) {
       case 'v':
@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
       case 'b':
         blen = atoi(optarg);
         if (blen < 1024 || blen > LEN) {
-           fprintf(stderr, "Strange buffer length, using 8192 . . .\n");
+           fprintf(stderr, "volrace: Strange buffer length, using 8192 . . .\n");
            fflush(stderr);
            blen = 8192;
         }
@@ -274,7 +274,7 @@ int main(int argc, char *argv[])
       case 'l':
         fadinglength = atoi(optarg);
         if (fadinglength < 1 || fadinglength > 400000) {
-           fprintf(stderr, "Strange fading length, using 44100 . . .\n");
+           fprintf(stderr, "volrace: Strange fading length, using 44100 . . .\n");
            fflush(stderr);
            fadinglength = 44100;
         }
@@ -286,7 +286,7 @@ int main(int argc, char *argv[])
         floatout = TRUE;
         break;
       case 'V':
-        fprintf(stderr, "volrace (version %s of frankl's stereo utilities)\n", 
+        fprintf(stderr, "volrace (version %s of frankl's stereo utilities)\n",
                 VERSION);
         exit(0);
       default:
@@ -294,7 +294,7 @@ int main(int argc, char *argv[])
         exit(1);
       }
   }
-  sanitizeparams(maxvol, &vol, &delay, &att, blen); 
+  sanitizeparams(maxvol, &vol, &delay, &att, blen);
 
   /* remember modification time of parameter file */
   if (fnam)
@@ -311,12 +311,12 @@ int main(int argc, char *argv[])
   while (TRUE) {
     if (floatin) {
       mlen = fread((void*)inpfloat, 2*sizeof(float), blen, stdin);
-      for (i=0; i<2*mlen; i++) 
+      for (i=0; i<2*mlen; i++)
         inp[i] = (double)(inpfloat[i]);
-    } else 
+    } else
       mlen = fread((void*)inp, 2*sizeof(double), blen, stdin);
     if (mlen == 0)  /* done */
-      break;  
+      break;
     for (i=0; i<mlen; i++) {
       /* copy into buf with delayed race signal */
       buf[2*(i+delay)] = vol*inp[2*i] - att*buf[2*i+1];
@@ -341,7 +341,7 @@ int main(int argc, char *argv[])
         count--;
       }
     }
-    if (floatout) 
+    if (floatout)
       check = fwrite((void*)outfloat, 2*sizeof(float), mlen, stdout);
     else
       check = fwrite((void*)out, 2*sizeof(double), mlen, stdout);
@@ -355,14 +355,14 @@ int main(int argc, char *argv[])
 
     /* if we are not fading to new parameters we check after each block
        if the modification time of the parameter file has changed; if yes
-       we try to read new values; in case of a problem we stay with the old 
+       we try to read new values; in case of a problem we stay with the old
        parameters */
     if (fnam != NULL && count < 0) {
         ntime = mtimens(fnam);
         if (ntime > ptime) {
            change = getparams(fnam, &nvol, &ndelay, &natt, 0);
            if (change) {
-             sanitizeparams(maxvol, &nvol, &ndelay, &natt, blen); 
+             sanitizeparams(maxvol, &nvol, &ndelay, &natt, blen);
              /* we fade to new values within a number of frames */
              count = fadinglength;
              vdiff = (nvol-vol)/count;
@@ -372,7 +372,7 @@ int main(int argc, char *argv[])
            }
         }
     }
-    
+
     /* move last delay samples to front */
     for (i=0; i<2*delay; i++) buf[i] = buf[2*mlen+i];
   }
