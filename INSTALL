@@ -6,13 +6,45 @@ You need a Linux system with a C-compiler and header files for libasound.
      sudo apt-get install gcc libasound2-dev
 )
 
-To compile the programs 'playhrt', 'bufhrt', 'volrace', 'writeloop'
-and 'catloop' say:
+To compile the programs 'playhrt', 'bufhrt', 'volrace', 'writeloop',
+'catloop', 'cptoshm', 'shmcat' and 'highrestest' hsay:
 
   make
 
-Then copy the files in the bin/ directory to some directory in your PATH.
+On ARM architecture there are alternative calls which use some assembler
+code for refreshing or cleaning memory:
 
+  make REFRESH=ARM
+  make REFRESH=VFP
+
+Use the latter if your CPU supports VFP, check 'Features' 
+with 'less /proc/cpuinfo'. 
+
+Then copy the files in the 'bin/' directory to some directory in your PATH.
+
+To read the documentation of the programs you can call them without option
+or with --help.
+
+Example scripts for using these programs are contained in the 'scripts/'
+directory. Explanations can be found on the page:
+  http://frank_l.bitbucket.org/stereoutils/player.html 
+
+For a good performance of 'playhrt' and 'bufhrt' you should use a Linux
+kernel with highres timers enabled. This is the case for most Linux
+distributions, you can check it by running the utility 'bin/highrestest'.
+
+Have fun!
+
+
+
+
+
+##  We keep here for a while some old hints for compiling earlier versions
+##  of these programs. This can still be done but is no longer needed, instead 
+##  we recommend for version 0.7 and later of this package to use playhrt 
+##  with the --mmap option.
+
+------------------------------------------------------------------------
 Another version of 'playhrt' can be compiled using a patched
 ALSA library. See below how to compile the patched library. Once you
 have done this, say:
@@ -24,12 +56,6 @@ or for a statically linked version:
   make bin/playhrt_static ALSANC=/my/alsa/install/dir/
 
 Then use one of these instead of bin/playhrt.
-
-For a good performance of 'playhrt' and 'bufhrt' you should use a Linux
-kernel with highres timers enabled. This is the case for most Linux
-distributions, you can check it by running the utility 'bin/highrestest'.
-
-
 ------------------------------------------------------------------------
    Compile a patched version of alsa-lib
 
