@@ -3,6 +3,8 @@ VERSION=0.7
 
 REFRESH=""
 
+ARCH=$(shell uname -m)
+
 # normal CFLAGS
 CFLAGS=-O2 -Wall -DREFRESH$(REFRESH)
 
@@ -77,12 +79,6 @@ veryclean: clean
 bin86: 
 	make veryclean
 	make
-	cc -O2 -Wall -o bin/volrace src/volrace.c -static
-	cc -O0 -Wall -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -static -lpthread -lrt 
-	cc -O0 -Wall -o bin/highrestest src/highrestest.c -static -lrt
-	cc -O2 -Wall -o bin/writeloop src/writeloop.c -static -lpthread -lrt
-	cc -O2 -Wall -o bin/catloop src/catloop.c -static -lpthread -lrt
-	cc -O0 -Wall  -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt src/playhrt.c tmp/net.o -lasound -lrt -lpthread -lm -ldl -static -lasound
 	cd bin; \
 	strip * ; \
 	tar cvf frankl_stereo-$(VERSION)-bin-$(ARCH).tar * ; \
@@ -90,13 +86,7 @@ bin86:
 	mv frankl*gz ..
 binPi: 
 	make veryclean
-	make
-	cc -O2 -Wall -o bin/volrace src/volrace.c -static
-	cc -O0 -Wall -D_FILE_OFFSET_BITS=64 -o bin/bufhrt tmp/net.o src/bufhrt.c -static -lpthread 
-	cc -O0 -Wall -o bin/highrestest src/highrestest.c -static 
-	cc -O2 -Wall -o bin/writeloop src/writeloop.c -static -lpthread -lrt
-	cc -O2 -Wall -o bin/catloop src/catloop.c -static -lpthread -lrt
-	cc -O0 -Wall  -DALSANC -I$(ALSANC)/include -L$(ALSANC)/lib -o bin/playhrt src/playhrt.c tmp/net.o -lasound -lpthread -lm -ldl -static -lasound
+	make REFRESH=VFP
 	cd bin; \
 	strip * ; \
 	tar cvf frankl_stereo-$(VERSION)-bin-$(ARCH).tar * ; \
