@@ -2,7 +2,7 @@
 
 0.6 to 0.7
 
-Comments for users of previous versions: Four main ideas went into this
+Comments for users of previous versions: Five main ideas went into this
 release, each of these cause audible improvements in my setup:
 
 (1) Use of the mmap interface in ALSA with playhrt. This reduces the
@@ -36,11 +36,19 @@ release, each of these cause audible improvements in my setup:
     revealed remarkably more details of the music. I have not made
     experiments with SSDs.
 
+(5) To make it easier to use this package we provide several example
+    scripts which are explained on the webpage
+        http://frank_l.bitbucket.org/stereoutils/player.html
+
+Acknowledgement: the addition of some functionality and various 
+improvements of the documentation were proposed by Simon Rambert.
+
 And here is a more detailed list of CHANGES.
 
 - new scripts: 'improvefile' for bit identical but different sounding
-  files on hard disks; 'playflac441' as an example script for playback of
-  a flac file in 44.1/16 format
+  files on hard disks; 'play_*' as an example script for playback of
+  a music files using this package. (Some example files from former releases
+  were removed).
 
 - new utility functions used by cptoshm, shmcat, bufhrt and playhrt:
   refreshmem and memclean are used to rewrite data in RAM, respectively
@@ -52,8 +60,7 @@ And here is a more detailed list of CHANGES.
   buffers to maintain)
 
 - all programs: numerous improvements in the documentation and in the
-  information printed with --verbose flags (many of these suggested by
-  Simon Rambert)
+  information printed with --verbose flags 
 
 - playhrt: new option --mmap which uses the low level mmap driver interface
   of ALSA drivers (in contrast to aplay). This mode is now recommended, even
@@ -61,7 +68,6 @@ And here is a more detailed list of CHANGES.
   version 0.6.
 
 - playhrt: new option --number-channels for use with multi-channel setups
-  (requested and tested by Simon Rambert)
 
 - writeloop: allow input from file via --from-file option
 
