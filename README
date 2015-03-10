@@ -11,10 +11,6 @@ Run a program with option '--help' to read its documentation.
 
 Overview:
 
- - volrace
-      implements a simple form of the RACE algorithm and can be used
-      for volume control
-
  - playhrt
       reads an audio stream from the network, stdin or a file and plays 
       it on a sound device
@@ -23,16 +19,27 @@ Overview:
       reads data from stdin, a file, or the network and writes them
       to stdout, a network port or a file
 
+ - volrace
+      implements a simple form of the RACE algorithm and can be used
+      for volume control
+
  - writeloop/catloop
       reads data from stdin and writes it cyclically to some files,
-      and vice versa   (to buffer data in a ramdisk)
+      and vice versa   (to buffer data in a ramdisk or shared memory)
 
- - listenloop/send_to_playhrt
-      example scripts which demonstrate the use of playhrt/bufhrt
+ - cptoshm/shmcat
+      writing and reading data to and from shared memory
+
+ - scripts/play_*
+      example scripts for playing music with programs from this package
+ 
+ - scripts/improvefile
+      a tool to enhance audio quality of a music file
 
 The main idea of 'playhrt' and 'bufhrt' is that data are written in
 very regular intervals using the highres timer functionality of the 
-Linux kernel.
+Linux kernel. Furthermore, data are refreshed in RAM before writing
+them to the output stream.
 
 See the file INSTALL for installation instructions.
 
