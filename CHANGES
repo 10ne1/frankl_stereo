@@ -40,9 +40,6 @@ release, each of these cause audible improvements in my setup:
     scripts which are explained on the webpage
         http://frank_l.bitbucket.org/stereoutils/player.html
 
-Acknowledgement: the addition of some functionality and various 
-improvements of the documentation were proposed by Simon Rambert.
-
 And here is a more detailed list of CHANGES.
 
 - new scripts: 'improvefile' for bit identical but different sounding
