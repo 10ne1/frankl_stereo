@@ -18,13 +18,16 @@ ORIGRATE=`sox --i "$1" | grep "Sample Rate" | cut -d: -f2 | sed -e "s/ //g"`
 
 trap "trap - SIGTERM && kill -- -$$ " SIGINT SIGTERM EXIT
 
+cptoshm --file="$1" --shmname=/play.flac
+
 rm -f /dev/shm/bl{1,2,3} /dev/shm/sem.bl{1,2,3}* 
 
 if ! test -e /tmp/VOLRACE ; then
   echo "0.6 4 0.75" > /tmp/VOLRACE
 fi
 
-sox  "$1" -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - | \
+shmcat --shmname=/play.flac | \
+      sox  "$1" -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - | \
       sox -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - \
           -t raw - vol 0.8 rate -v -I ${SAMPLERATE} | \
       volrace --param-file=/tmp/VOLRACE | \
