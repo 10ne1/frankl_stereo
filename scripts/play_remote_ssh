@@ -34,7 +34,7 @@ if ! test -e /tmp/VOLRACE ; then
   echo "0.6 4 0.75" > /tmp/VOLRACE
 fi
 
-shmcat /play.flac 32768 |
+shmcat --shmname=/play.flac |
       sox  -t flac -  -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - | \
       sox -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - \
           -t raw - vol 0.8 rate -v -I ${SAMPLERATE} | \
