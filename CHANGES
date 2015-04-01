@@ -1,7 +1,10 @@
         Changes between published versions
 
 0.7 to 0.7.1
- 
+
+- added --verbose option to 'shmcat', 'catloop', 'writeloop'
+  and 'volrace'.
+
 - introduced --sleep=Nus option to 'playhrt', to give input programs
   time for startup.
 
