@@ -177,6 +177,12 @@ void usage( ) {
 "      maximal extra amount before an underrun of data is assumed.\n"
 "      Default is 24.\n"
 "  \n"
+"  --sleep=intval, -D intval\n"
+"      causes playhrt to sleep for intval microseconds (1/1000000 sec)\n"
+"      after opening the sound device and before starting playback.\n"
+"      This may sometimes be useful to give other programs time to \n"
+"      fill the input buffer of playhrt. Default is no sleep.\n"
+"\n"
 "  --verbose, -v\n"
 "      print some information during startup and operation.\n"
 "      This option can be given twice for more output about timing\n"
@@ -232,7 +238,7 @@ int main(int argc, char *argv[])
 {
     int sfd, s, moreinput, err, verbose, nrchannels, startcount, sumavg,
         innetbufsize;
-    long blen, hlen, ilen, olen, extra, loopspersec, nrdelays,
+    long blen, hlen, ilen, olen, extra, loopspersec, nrdelays, sleep,
          nsec, count, wnext, badloops, badreads, readmissing, avgav, checkav;
     long long icount, ocount, badframes;
     void *buf, *iptr, *optr, *max;
@@ -268,6 +274,7 @@ int main(int argc, char *argv[])
         {"period-size", required_argument, 0, 'P' },
         {"device", required_argument, 0, 'd' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
+        {"sleep", required_argument, 0, 'D' },
         {"in-net-buffer-size", required_argument, 0, 'K' },
         {"extra-frames-out", required_argument, 0, 'o' },
         {"non-blocking-write", no_argument, 0, 'N' },
@@ -300,6 +307,7 @@ int main(int argc, char *argv[])
     nrchannels = 2;
     access = SND_PCM_ACCESS_RW_INTERLEAVED;
     extrabps = 0;
+    sleep = 0;
     nonblock = 0;
     innetbufsize = 0;
     corr = 0;
@@ -363,6 +371,9 @@ int main(int argc, char *argv[])
           break;
         case 'e':
           extrabps = atof(optarg);
+          break;
+        case 'D':
+          sleep = atoi(optarg);
           break;
         case 'K':
           innetbufsize = atoi(optarg);
@@ -557,8 +568,12 @@ int main(int argc, char *argv[])
     readmissing = 0;
     nrdelays = 0;
 
-    /* short delay to allow input to fill buffer, not needed?
-    usleep(200000);   */
+    /* short delay to allow input to fill buffer */
+    if (sleep > 0) {
+      mtime.tv_sec = sleep/1000000;
+      mtime.tv_nsec = 1000*(sleep - mtime.tv_sec*1000000);
+      nanosleep(&mtime, NULL);
+    }
 
     if (access == SND_PCM_ACCESS_RW_INTERLEAVED) {
       /* fill half buffer */
