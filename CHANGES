@@ -1,5 +1,12 @@
         Changes between published versions
 
+0.7 to 0.7.1
+ 
+- introduced --sleep=Nus option to 'playhrt', to give input programs
+  time for startup.
+
+- corrected the arguments of 'shmcat' in two example scripts.
+
 0.6 to 0.7
 
 Comments for users of previous versions: Five main ideas went into this
