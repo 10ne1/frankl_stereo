@@ -32,13 +32,16 @@ void usage( ) {
 "\n"
 "  You may create the shared memory file with 'cptoshm'.\n"
 "\n"
+"  The program also support the '--version' option to display its version\n"
+"  and the '--verbose' option to display when it is starting.\n"
+"\n"
 );
 }
 
 int main(int argc, char *argv[])
 {
   char *memname;
-  int fd, optc;
+  int fd, optc, verbose;
   size_t length, blen, done, wlen;
   struct stat sb;
   char *mem, *ptr;
@@ -47,6 +50,7 @@ int main(int argc, char *argv[])
   static struct option longoptions[] = {
       {"shmname", required_argument, 0, 'i' },
       {"block-size", required_argument, 0,  'b' },
+      {"verbose", no_argument, 0, 'v' },
       {"version", no_argument, 0, 'V' },
       {"help", no_argument, 0, 'h' },
       {0,         0,                 0,  0 }
@@ -58,6 +62,7 @@ int main(int argc, char *argv[])
   }
   blen = 8192;
   memname = NULL;
+  verbose = 0;
   while ((optc = getopt_long(argc, argv, "i:b:Vh",
           longoptions, &optind)) != -1) {
       switch (optc) {
@@ -67,9 +72,12 @@ int main(int argc, char *argv[])
       case 'b':
         blen = atoi(optarg);
         break;
+      case 'v':
+        verbose = 1;
+        break;
       case 'V':
         fprintf(stderr,
-                "cptoshm (version %s of frankl's stereo utilities)\n",
+                "shmcat (version %s of frankl's stereo utilities)\n",
                 VERSION);
         exit(0);
       default:
@@ -98,6 +106,8 @@ int main(int argc, char *argv[])
   }
   ptr = mem;
   done = 0;
+  if (verbose)
+      fprintf(stderr, "shmcat: starting");
   while (done < length-blen) {
       refreshmem(ptr, blen);
       refreshmem(ptr, blen);
