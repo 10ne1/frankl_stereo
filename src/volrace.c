@@ -123,6 +123,9 @@ void usage( ) {
 "   --help, -h\n"
 "      show this help.\n"
 "\n"
+"   --verbose, -p\n"
+"      shows some information during startup and operation.\n"
+"\n"
 "   --version, -V\n"
 "      show the version of this program and exit.\n"
 "\n"
@@ -215,7 +218,7 @@ int main(int argc, char *argv[])
   double buf[2*LEN+2*MAXDELAY], inp[2*LEN], out[2*LEN];
   float inpfloat[2*LEN], outfloat[2*LEN];
   int optc, optind, blen, delay, ndelay, i, check, mlen, change, count,
-      fadinglength;
+      fadinglength, verbose;
   char *fnam, floatin, floatout;
 
   if (argc == 1) {
@@ -233,6 +236,7 @@ int main(int argc, char *argv[])
       {"fading-length", required_argument, 0,  'l' },
       {"float-input", no_argument, 0, 'I' },
       {"float-output", no_argument, 0, 'O' },
+      {"verbose", no_argument, 0, 'p' },
       {"version", no_argument, 0, 'V' },
       {"help", no_argument, 0, 'h' },
       {0,         0,                 0,  0 }
@@ -245,6 +249,7 @@ int main(int argc, char *argv[])
   fnam = NULL;
   maxvol = 1.0;
   fadinglength = 44100;
+  verbose = 0;
   floatin = FALSE;
   floatout = FALSE;
   while ((optc = getopt_long(argc, argv, "v:d:a:b:f:m:l:IOVh",
@@ -282,6 +287,9 @@ int main(int argc, char *argv[])
            fadinglength = 44100;
         }
         break;
+      case 'p':
+        verbose = 1;
+        break;
       case 'I':
         floatin = TRUE;
         break;
@@ -302,6 +310,17 @@ int main(int argc, char *argv[])
   /* remember modification time of parameter file */
   if (fnam)
     ptime = mtimens(fnam);
+
+  if (verbose) {
+     fprintf(stderr, "verbose:");
+     if (floatin)
+        fprintf(stderr, " float input,");
+     if (floatout)
+        fprintf(stderr, " float output,");
+     if (fnam)
+        fprintf(stderr, " parameters from file,");
+     fprintf(stderr, "vol %.3f, race att %.3f delay %ld\n", (double)vol, (double)att, (long)delay);
+  }
 
   /* if count >= 0 we are fading the parameters to a new value */
   vdiff = 0.0;
@@ -362,7 +381,7 @@ int main(int argc, char *argv[])
        parameters */
     if (fnam != NULL && count < 0) {
         ntime = mtimens(fnam);
-        if (ntime > ptime) {
+        if (ntime > ptime+0.00001) {
            change = getparams(fnam, &nvol, &ndelay, &natt, 0);
            if (change) {
              sanitizeparams(maxvol, &nvol, &ndelay, &natt, blen);
@@ -372,6 +391,10 @@ int main(int argc, char *argv[])
              adiff = (natt-att)/count;
              ptime = ntime;
              delay = ndelay;
+             if (verbose) {
+                fprintf(stderr, "verbose: reread new parameters: (%f) ", ntime);
+                fprintf(stderr, "vol %.3f, race att %.3f delay %ld\n", (double)nvol, (double)natt, (long)ndelay);
+             }
            }
         }
     }
