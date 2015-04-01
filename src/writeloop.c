@@ -67,6 +67,9 @@ void usage( ) {
 "      For large amounts of shared memory you may need to enlarge\n"
 "      '/proc/sys/kernel/shmmax' directly or via sysctl.\n"
 "\n"
+"  --verbose, -v\n"
+"    print some information during startup.\n"
+"\n"
 "  --version, -V\n"
 "      print information about the version of the program and abort.\n"
 "\n"
@@ -112,7 +115,8 @@ int main(int argc, char *argv[])
          *ptr;
     sem_t **sem, *sems[100], **semw, *semsw[100];
     void * buf;
-    int outfile, fd[100], inp, i, s, shared, blocksize, size, ret, sz, c, optc;
+    int outfile, fd[100], inp, i, s, shared, verbose, blocksize, 
+        size, ret, sz, c, optc;
     uint *uptr;
 
     /* read command line options */
@@ -121,6 +125,7 @@ int main(int argc, char *argv[])
         {"from-file", required_argument, 0, 'F' },
         {"file-size", required_argument,       0,  'f' },
         {"shared", no_argument, 0, 's' },
+        {"verbose", no_argument, 0, 'v' },
         {"version", no_argument, 0, 'V' },
         {"help", no_argument, 0, 'h' },
         {0,         0,                 0,  0 }
@@ -134,6 +139,7 @@ int main(int argc, char *argv[])
     blocksize = 2000;
     size = 64000;
     shared = 0;
+    verbose = 0;
     inp = 0;  /* stdin */
     while ((optc = getopt_long(argc, argv, "b:f:F:sVh",
             longoptions, &optind)) != -1) {
@@ -152,6 +158,9 @@ int main(int argc, char *argv[])
           break;
         case 's':
           shared = 1;
+          break;
+        case 'v':
+          verbose = 1;
           break;
         case 'V':
           fprintf(stderr,
@@ -228,8 +237,15 @@ int main(int argc, char *argv[])
     fnames[argc-optind] = NULL;
     fname = fnames;
     tmpname = tmpnames;
-
+    if (verbose) {
+      if (inp == 0) 
+        fprintf(stderr, "writeloop: reading from stdin, ");
+      else
+        fprintf(stderr, "writeloop: reading from file, ");
+    } 
     if (shared) {
+        if (verbose)
+          fprintf(stderr, "writing to shared memory\n");
         mem = mems;
         sem = sems;
         semw = semsw;
@@ -274,6 +290,8 @@ int main(int argc, char *argv[])
            semw++;
         }
     } else {
+        if (verbose)
+          fprintf(stderr, "writing to files\n");
         sz = 0;
         c = read(inp, buf, blocksize);
         sz += c;
