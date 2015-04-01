@@ -59,6 +59,9 @@ void usage( ) {
 "      memory you may need to enlarge '/proc/sys/kernel/shmmax' directly or\n"
 "      via sysctl.\n"
 "\n"
+"  --verbose, -v\n"
+"    print some information during startup.\n"
+"\n"
 "  --version, -V\n"
 "      print information about the version of the program and abort.\n"
 "\n"
@@ -103,7 +106,8 @@ int main(int argc, char *argv[])
          *ptr;
     sem_t **sem, *sems[100], **semw, *semsw[100];
     void * buf;
-    int optc, infile, fd[100], i, blocksize, size, flen, sz, ret, shared, c;
+    int optc, infile, fd[100], i, blocksize, size, flen, sz, 
+        ret, shared, c, verbose;
     struct stat sb;
 
 
@@ -111,6 +115,7 @@ int main(int argc, char *argv[])
     static struct option longoptions[] = {
         {"block-size", required_argument, 0,  'b' },
         {"shared", no_argument, 0, 's' },
+        {"verbose", no_argument, 0, 'v' },
         {"version", no_argument, 0, 'V' },
         {"help", no_argument, 0, 'h' },
         {0,         0,                 0,  0 }
@@ -123,6 +128,7 @@ int main(int argc, char *argv[])
     /* defaults */
     blocksize = 2000;
     shared = 0;
+    verbose = 0;
     size = 0;
     while ((optc = getopt_long(argc, argv, "b:Vh",
             longoptions, &optind)) != -1) {
@@ -132,6 +138,9 @@ int main(int argc, char *argv[])
           break;
         case 's':
           shared = 1;
+          break;
+        case 'v':
+          verbose = 1;
           break;
         case 'V':
           fprintf(stderr,
@@ -200,6 +209,8 @@ int main(int argc, char *argv[])
     fnames[argc-optind] = NULL;
     fname = fnames;
     if (shared) {
+        if (verbose)
+          fprintf(stderr, "catloop: reading from shared memory\n"); 
         tmpname = tmpnames;
         mem = mems;
         sem = sems;
@@ -258,6 +269,8 @@ int main(int argc, char *argv[])
            semw++;
         }
     } else {
+        if (verbose)
+           fprintf(stderr, "catloop: reading from files\n"); 
         while (1) {
            if (*fname == NULL)
               fname = fnames;
