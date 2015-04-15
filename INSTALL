@@ -4,10 +4,12 @@
 You need a Linux system with a C-compiler and header files for libasound.
 (on Debian/Ubuntu and similar distributions:
      sudo apt-get install gcc libasound2-dev
+on Arch:
+     sudo pacman -S gcc alsa-lib
 )
 
 To compile the programs 'playhrt', 'bufhrt', 'volrace', 'writeloop',
-'catloop', 'cptoshm', 'shmcat' and 'highrestest' hsay:
+'catloop', 'cptoshm', 'shmcat' and 'highrestest' say:
 
   make
 
