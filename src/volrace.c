@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
     ptime = mtimens(fnam);
 
   if (verbose) {
-     fprintf(stderr, "verbose:");
+     fprintf(stderr, "volrace:");
      if (floatin)
         fprintf(stderr, " float input,");
      if (floatout)
@@ -392,7 +392,7 @@ int main(int argc, char *argv[])
              ptime = ntime;
              delay = ndelay;
              if (verbose) {
-                fprintf(stderr, "verbose: reread new parameters: (%f) ", ntime);
+                fprintf(stderr, "volrace: reread new parameters: (%f) ", ntime);
                 fprintf(stderr, "vol %.3f, race att %.3f delay %ld\n", (double)nvol, (double)natt, (long)ndelay);
              }
            }
