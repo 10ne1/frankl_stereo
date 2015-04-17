@@ -487,7 +487,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "playhrt: Cannot set non-block mode.\n");
             exit(6);
         } else if (verbose) {
-            fprintf(stderr, "playhrt: Accessing card in non-block mode.\n");
+            fprintf(stderr, "playhrt: Using card in non-block mode.\n");
         }
     }
     if (snd_pcm_hw_params_any(pcm_handle, hwparams) < 0) {
