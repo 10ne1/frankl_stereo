@@ -30,7 +30,7 @@ cptoshm --file="$1" --shmname=/play.flac
 rm -f /dev/shm/bl{1,2,3} /dev/shm/sem.bl{1,2,3}* 
 
 if ! test -e /tmp/VOLRACE ; then
-  echo "0.6 4 0.75" > /tmp/VOLRACE
+  echo "0.6 17 0.75" > /tmp/VOLRACE
 fi
 
 shmcat --shmname=/play.flac |
