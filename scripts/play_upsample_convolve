@@ -27,7 +27,7 @@ if ! test -e /tmp/VOLRACE ; then
 fi
 
 shmcat --shmname=/play.flac | \
-      sox  "$1" -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - | \
+      sox -t flac - -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - | \
       sox -t raw -r ${ORIGRATE} -c 2 -e float -b 64 - \
           -t raw - vol 0.8 rate -v -I ${SAMPLERATE} | \
       volrace --param-file=/tmp/VOLRACE | \
