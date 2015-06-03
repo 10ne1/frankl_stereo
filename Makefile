@@ -6,10 +6,10 @@ REFRESH=""
 ARCH=$(shell uname -m)
 
 # normal CFLAGS
-CFLAGS=-O2 -Wall -DREFRESH$(REFRESH)
+CFLAGS=-O2 -Wall -fgnu89-inline -DREFRESH$(REFRESH)
 
 # CFLAGS without optimization
-CFLAGSNO=-O0 -Wall -DREFRESH$(REFRESH)
+CFLAGSNO=-O0 -Wall -fgnu89-inline -DREFRESH$(REFRESH)
 
 # targets
 ALL: bin tmp bin/volrace bin/bufhrt bin/highrestest \
