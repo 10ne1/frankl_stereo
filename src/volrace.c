@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
       {"volume", required_argument, 0,  'v' },
       {"race-delay", required_argument,       0,  'd' },
       {"race-volume", required_argument, 0,  'a' },
-      {"bufferlength", required_argument,       0,  'b' },
+      {"buffer-length", required_argument,       0,  'b' },
       {"param-file",  required_argument, 0, 'f'},
       {"max-volume", required_argument, 0,  'm' },
       {"fading-length", required_argument, 0,  'l' },
