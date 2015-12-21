@@ -268,7 +268,9 @@ int main(int argc, char *argv[])
       case 'b':
         blen = atoi(optarg);
         if (blen < 1024 || blen > LEN) {
-           fprintf(stderr, "volrace: Strange buffer length, using 8192 . . .\n");
+           fprintf(stderr,
+                   "volrace: Buffer length must be in range %d..%d, using 8192.\n",
+                   1024, LEN);
            fflush(stderr);
            blen = 8192;
         }
