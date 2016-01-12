@@ -163,6 +163,17 @@ void usage( ) {
 "      faster to the sound device). See ADJUSTING SPEED below for\n"
 "      hints. The default is 0.\n"
 "\n"
+"  --no-delay-stats, -j\n"
+"      disables statistics about delayed loops, see DELAYED LOOPS below.\n"
+"      Only use this after finishing fine tuning of your parameters.\n"
+"\n"
+"  --no-buf-stats, -y\n"
+"      in --mmap mode tries to self adjust and suggest better values\n"
+"      of the --extra-bytes-per-second parameter by checking the average\n"
+"      size of space available in the hardware buffer. The --no-buf-stats\n"
+"      option disabled this check and adjustment. So, use this option\n"
+"      only after finding the correct --extra-bytes-per-second parameter.\n"
+"\n"
 "  --in-net-buffer-size=intval, -N intval\n"
 "      when reading from the network this allows to set the buffer\n"
 "      size for the incoming data. This is for finetuning only, normally\n"
@@ -230,6 +241,17 @@ void usage( ) {
 "  by about:\n"
 "      (value of --buffer-size) / (2 x number of seconds until underrun)\n"
 "\n"
+"  DELAYED LOOPS\n"
+"\n"
+"  It may happen that in some read-preparation-sleep loops the sleep starts\n"
+"  after the intended wakeup time (too long computations, system interrupts\n"
+"  or other reasons). playhrt counts such loops as \"delayed loops\" and\n"
+"  reports them in --verbose mode. These can be ignored if their number is\n"
+"  a small proportion of all loops, say, up to a few percent. If delayed\n"
+"  lopps occur their number will become smaller with lower verbosity level\n"
+"  and the detection of such loops can be disabled (and maybe further \n"
+"  reduced with the --no-delay-stats option.\n"
+"\n"
 );
 }
 
@@ -237,7 +259,7 @@ void usage( ) {
 int main(int argc, char *argv[])
 {
     int sfd, s, moreinput, err, verbose, nrchannels, startcount, sumavg,
-        innetbufsize;
+        innetbufsize, dobufstats, countdelay;
     long blen, hlen, ilen, olen, extra, loopspersec, nrdelays, sleep,
          nsec, count, wnext, badloops, badreads, readmissing, avgav, checkav;
     long long icount, ocount, badframes;
@@ -280,6 +302,8 @@ int main(int argc, char *argv[])
         {"non-blocking-write", no_argument, 0, 'N' },
         {"overwrite", required_argument, 0, 'O' },
         {"verbose", no_argument, 0, 'v' },
+        {"no-buf-stats", no_argument, 0, 'y' },
+        {"no-delay-stats", no_argument, 0, 'j' },
         {"version", no_argument, 0, 'V' },
         {"help", no_argument, 0, 'h' },
         {0,         0,                 0,  0 }
@@ -312,6 +336,8 @@ int main(int argc, char *argv[])
     innetbufsize = 0;
     corr = 0;
     verbose = 0;
+    dobufstats = 1;
+    countdelay = 1;
     while ((optc = getopt_long(argc, argv, "r:p:Sb:i:n:s:f:k:Mc:P:d:e:o:NvVh",
             longoptions, &optind)) != -1) {
         switch (optc) {
@@ -390,6 +416,12 @@ int main(int argc, char *argv[])
           break;
         case 'v':
           verbose += 1;
+          break;
+        case 'y':
+          dobufstats = 0;
+          break;
+        case 'j':
+          countdelay = 0;
           break;
         case 'V':
           fprintf(stderr,
@@ -724,7 +756,7 @@ int main(int argc, char *argv[])
 
           /* do some statistics to check average hwbuffer space available
              to check and improve --extra-bytes-per-second parameter */
-          if (count > startcount && count % 4096 == 0) {
+          if (dobufstats && count > startcount && count % 4096 == 0) {
               sumavg = 16;
               avgav = 0;
           }
@@ -780,9 +812,11 @@ int main(int argc, char *argv[])
           refreshmem(iptr, s);
 
           /* debug:  check that we really sleep to some time in the future */
-          clock_gettime(CLOCK_MONOTONIC, &mtimecheck);
-          if (mtimecheck.tv_sec > mtime.tv_sec || (mtimecheck.tv_sec == mtime.tv_sec && mtimecheck.tv_nsec > mtime.tv_nsec))
-              nrdelays += 1;
+          if (countdelay) {
+            clock_gettime(CLOCK_MONOTONIC, &mtimecheck);
+            if (mtimecheck.tv_sec > mtime.tv_sec || (mtimecheck.tv_sec == mtime.tv_sec && mtimecheck.tv_nsec > mtime.tv_nsec))
+                nrdelays += 1;
+          }
           if (verbose > 1 && nrdelays > 0 && count % 4096 == 0) {
               fprintf(stderr, "playhrt: number of delayed loops: %ld (%ld sec %ld nsec)\n", nrdelays, mtime.tv_sec, mtime.tv_nsec);
           }
