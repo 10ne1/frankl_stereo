@@ -65,15 +65,15 @@ inline void refreshmem(char* ptr, int n)
 {
   /* we make shure below that we can access ptr-off */
   int i, sz, off;
-  unsigned int x, d, *up;
+  unsigned int x, y, d, *up;
   sz = sizeof(unsigned int);
   off = (uintptr_t)ptr % sz;
   for(i=0, up=(unsigned int*)(ptr-off); i < (n+off)/sz; i++) {
       x = *up;
       d = 0xFFFFFFFF;
-      x = x ^ d;
-      x = x ^ d;
-      *up = x;
+      y = x ^ d;
+      *up = 0x0;
+      *up = y ^ d;
   }
 }
 inline void memclean(char* ptr, int n)

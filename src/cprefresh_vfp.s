@@ -21,9 +21,12 @@ memcp_vfpX:
 	vdup.32 d0, r3
         mov r3, #0xFFFFFFFF
 	vdup.32 d1, r3
+	mov r3, #0
+	vdup.32 d2, r3
 	vldm r1!, {d0}
-	veor d0, d0, d1
-	veor d0, d0, d1	
+	veor d2, d0, d1
+	vdup.32 d0, r3
+	veor d0, d2, d1
 	vstm r0!, {d0}
 	subs r2, r2,  #8
 	bgt memcp_vfpX
