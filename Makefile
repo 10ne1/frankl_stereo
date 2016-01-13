@@ -57,16 +57,16 @@ bin/bufhrt: src/version.h tmp/net.o src/bufhrt.c tmp/cprefresh.o tmp/cprefresh_a
 bin/highrestest: src/highrestest.c |bin
 	$(CC) $(CFLAGSNO) -o bin/highrestest src/highrestest.c -lrt
 
-bin/writeloop: src/writeloop.c |bin
-	$(CC) $(CFLAGS) -D_FILE_OFFSET_BITS=64 -o bin/writeloop src/writeloop.c -lpthread -lrt
+bin/writeloop: src/version.h src/writeloop.c tmp/cprefresh.o tmp/cprefresh_ass.o |bin
+	$(CC) $(CFLAGS) -D_FILE_OFFSET_BITS=64 -o bin/writeloop tmp/cprefresh.o tmp/cprefresh_ass.o src/writeloop.c -lpthread -lrt
 
-bin/catloop: src/catloop.c |bin
+bin/catloop: src/version.h src/catloop.c |bin
 	$(CC) $(CFLAGS) -o bin/catloop src/catloop.c -lpthread -lrt
 
-bin/cptoshm: src/cptoshm.c tmp/cprefresh_ass.o tmp/cprefresh.o |bin
+bin/cptoshm: src/version.h src/cptoshm.c tmp/cprefresh_ass.o tmp/cprefresh.o |bin
 	$(CC) $(CFLAGS) -o bin/cptoshm src/cptoshm.c tmp/cprefresh_ass.o tmp/cprefresh.o -lrt
 
-bin/shmcat: src/shmcat.c tmp/cprefresh_ass.o tmp/cprefresh.o |bin
+bin/shmcat: src/version.h src/shmcat.c tmp/cprefresh_ass.o tmp/cprefresh.o |bin
 	$(CC) $(CFLAGS) -o bin/shmcat tmp/cprefresh_ass.o tmp/cprefresh.o src/shmcat.c -lrt
 
 clean: 

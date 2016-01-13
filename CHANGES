@@ -2,6 +2,8 @@
 
 0.7 to 0.8
 
+- now using 'memclean' in 'writeloop'.
+
 - using additional register/variable for refreshing of memory. Causes
   again a surprising improvement of sound in my system.
 

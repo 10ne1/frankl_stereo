@@ -20,6 +20,7 @@ http://www.gnu.org/licenses/gpl.txt for license details.
 #include <errno.h>
 #include <string.h>
 #include <semaphore.h>
+#include "cprefresh.h"
 
 /* help page */
 /* vim hint to remove resp. add quotes:
@@ -115,9 +116,8 @@ int main(int argc, char *argv[])
          *ptr;
     sem_t **sem, *sems[100], **semw, *semsw[100];
     void * buf;
-    int outfile, fd[100], inp, i, s, shared, verbose, blocksize, 
+    int outfile, fd[100], inp, i, shared, verbose, blocksize, 
         size, ret, sz, c, optc;
-    uint *uptr;
 
     /* read command line options */
     static struct option longoptions[] = {
@@ -249,6 +249,7 @@ int main(int argc, char *argv[])
         mem = mems;
         sem = sems;
         semw = semsw;
+        memclean(buf, blocksize);
         c = read(inp, buf, blocksize);
         sz = c;
         while (1) {
@@ -268,15 +269,11 @@ int main(int argc, char *argv[])
               exit(0);
            }
            ptr = *mem+sizeof(int);
-           for (s = 0, uptr=(uint*)ptr; s < size/sizeof(uint); s++)
-             *uptr++ = 2863311530u;
-           for (s = 0, uptr=(uint*)ptr; s < size/sizeof(uint); s++)
-             *uptr++ = 4294967295u;
-           for (s = 0, uptr=(uint*)ptr; s < size/sizeof(uint); s++)
-             *uptr++ = 0;
+           memclean(ptr, size);
            while (c > 0 && sz <= size) {
               memcpy(ptr, buf, c);
               ptr += c;
+              memclean(buf, blocksize);
               c = read(inp, buf, blocksize);
               sz += c;
            }
@@ -293,6 +290,7 @@ int main(int argc, char *argv[])
         if (verbose)
           fprintf(stderr, "writing to files.\n");
         sz = 0;
+        memclean(buf, blocksize);
         c = read(inp, buf, blocksize);
         sz += c;
         while (1) {
@@ -324,6 +322,7 @@ int main(int argc, char *argv[])
                   fprintf(stderr, "writeloop: Could not write full buffer.\n");
                   exit(6);
               }
+              memclean(buf, blocksize);
               c = read(inp, buf, blocksize);
               sz += c;
            }
