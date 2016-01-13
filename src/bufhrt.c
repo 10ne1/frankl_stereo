@@ -361,8 +361,8 @@ int main(int argc, char *argv[])
        if (rate != 0 && bytesperframe != 0) {
            outpersec = rate * bytesperframe;
        } else {
-           fprintf(stderr, "bufhrt: Specify --bytes-per-second (or rate and format "
-                           "of audio data).\n");
+           fprintf(stderr, "bufhrt: Specify --bytes-per-second (or rate and "
+                           "format of audio data).\n");
            exit(5);
        }
     }
@@ -370,7 +370,7 @@ int main(int argc, char *argv[])
        ifd = fd_net(inhost, inport);
         if (innetbufsize != 0  &&
             setsockopt(ifd, SOL_SOCKET, SO_RCVBUF, (void*)&innetbufsize, sizeof(int)) < 0) {
-                fprintf(stderr, "bufhrt: cannot set buffer size for network socket to %d.\n",
+                fprintf(stderr, "bufhrt: Cannot set buffer size for network socket to %d.\n",
                         innetbufsize);
                 exit(23);
         }
@@ -590,7 +590,7 @@ int main(int argc, char *argv[])
              /* write a chunk, this comes first after waking from sleep */
              s = write(connfd, ptr, c);
              if (s < 0) {
-                 fprintf(stderr, "bufhrt (from shared): Write error: %s\n",
+                 fprintf(stderr, "bufhrt (from shared): Write error: %s.\n",
                                  strerror(errno));
                  exit(15);
              }
@@ -723,7 +723,7 @@ int main(int argc, char *argv[])
         exit(14);
     }
     if (verbose) {
-        fprintf(stderr, "bufhrt: Starting at %ld sec %ld nsec \n",
+        fprintf(stderr, "bufhrt: Starting at %ld sec %ld nsec,\n",
                                            mtime.tv_sec, mtime.tv_nsec);
         fprintf(stderr,
                 "bufhrt:    insize %ld, outsize %ld, buflen %ld, interval %ld nsec\n",

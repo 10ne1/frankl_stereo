@@ -168,7 +168,7 @@ int getparams(char* fnam, double* vp, int* delay, double* att, int init) {
   params = fopen(fnam, "r");
   if (!params) {
      if (init) {
-       fprintf(stderr, "volrace: Cannot open %s\n", fnam);
+       fprintf(stderr, "volrace: Cannot open %s.\n", fnam);
        fflush(stderr);
        exit(2);
      } else
@@ -178,7 +178,7 @@ int getparams(char* fnam, double* vp, int* delay, double* att, int init) {
   if (ok == EOF || ok == 0) {
      fclose(params);
      if (init) {
-       fprintf(stderr, "volrace: Cannot read parameters from  %s\n", fnam);
+       fprintf(stderr, "volrace: Cannot read parameters from  %s.\n", fnam);
        fflush(stderr);
        exit(3);
      }  else
@@ -196,19 +196,19 @@ int getparams(char* fnam, double* vp, int* delay, double* att, int init) {
 /* correct too bad values */
 void sanitizeparams(double maxvol, double* vp, int* delay, double* att, int bl){
   if (*vp < -maxvol || *vp > maxvol) {
-     fprintf(stderr, "volrace: Invalid vol, using %.4f\n", 0.01*maxvol); fflush(stderr);
+     fprintf(stderr, "volrace: Invalid vol, using %.4f.\n", 0.01*maxvol); fflush(stderr);
      *vp = 0.01*maxvol;
   }
   if (*delay < 1 || *delay > MAXDELAY) {
-     fprintf(stderr, "volrace: Invalid delay, using 12\n"); fflush(stderr);
+     fprintf(stderr, "volrace: Invalid delay, using 12.\n"); fflush(stderr);
      *delay = 12;
   }
   if (*att < -0.95 || *att > 0.95) {
-     fprintf(stderr, "volrace: Invalid att, using 0.0 (disabled)\n"); fflush(stderr);
+     fprintf(stderr, "volrace: Invalid att, using 0.0 (disabled).\n"); fflush(stderr);
      *att = 0.25;
   }
   if (bl < 2 * (*delay)) {
-     fprintf(stderr, "volrace: buffer to short for delay, using 12\n"); fflush(stderr);
+     fprintf(stderr, "volrace: Buffer to short for delay, using 12.\n"); fflush(stderr);
      *delay = 12;
   }
 }
@@ -322,7 +322,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, " float output,");
      if (fnam)
         fprintf(stderr, " parameters from file,");
-     fprintf(stderr, "vol %.3f, race att %.3f delay %ld\n", (double)vol, (double)att, (long)delay);
+     fprintf(stderr, "vol %.3f, race att %.3f delay %ld.\n", (double)vol, (double)att, (long)delay);
   }
 
   /* if count >= 0 we are fading the parameters to a new value */
@@ -373,7 +373,7 @@ int main(int argc, char *argv[])
     fflush(stdout);
     /* this should not happen, the whole block should be written */
     if (check < mlen) {
-        fprintf(stderr, "volrace: error in write\n");
+        fprintf(stderr, "volrace: Error in write.\n");
         fflush(stderr);
         exit(4);
     }
@@ -395,8 +395,8 @@ int main(int argc, char *argv[])
              ptime = ntime;
              delay = ndelay;
              if (verbose) {
-                fprintf(stderr, "volrace: reread new parameters: (%f) ", ntime);
-                fprintf(stderr, "vol %.3f, race att %.3f delay %ld\n", (double)nvol, (double)natt, (long)ndelay);
+                fprintf(stderr, "volrace: Reread new parameters: (%f) ", ntime);
+                fprintf(stderr, "vol %.3f, race att %.3f delay %ld.\n", (double)nvol, (double)natt, (long)ndelay);
              }
            }
         }

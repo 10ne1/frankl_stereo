@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
     }
     mem = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mem == MAP_FAILED) {
-        fprintf(stderr, "cptoshm: Cannot map shared memory.");
+        fprintf(stderr, "cptoshm: Cannot map shared memory.\n");
         exit(6);
     }
     /* clear memory */
@@ -205,6 +205,6 @@ int main(int argc, char *argv[])
       }
     }
     if (verbose)
-        fprintf(stderr, "cptoshm: copied %ld bytes.\n", (long)done);
+        fprintf(stderr, "cptoshm: Copied %ld bytes.\n", (long)done);
     exit(0);
 }

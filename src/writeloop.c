@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
         }
     }
     if (blocksize > size) {
-        fprintf(stderr, "writeloop: block size must be smaller than file size.\n");
+        fprintf(stderr, "writeloop: Block size must be smaller than file size.\n");
         exit(3);
     }
     buf = malloc(blocksize);
@@ -239,13 +239,13 @@ int main(int argc, char *argv[])
     tmpname = tmpnames;
     if (verbose) {
       if (inp == 0) 
-        fprintf(stderr, "writeloop: reading from stdin, ");
+        fprintf(stderr, "writeloop: Reading from stdin, ");
       else
-        fprintf(stderr, "writeloop: reading from file, ");
+        fprintf(stderr, "writeloop: Reading from file, ");
     } 
     if (shared) {
         if (verbose)
-          fprintf(stderr, "writing to shared memory\n");
+          fprintf(stderr, "writing to shared memory.\n");
         mem = mems;
         sem = sems;
         semw = semsw;
@@ -291,7 +291,7 @@ int main(int argc, char *argv[])
         }
     } else {
         if (verbose)
-          fprintf(stderr, "writing to files\n");
+          fprintf(stderr, "writing to files.\n");
         sz = 0;
         c = read(inp, buf, blocksize);
         sz += c;
@@ -305,7 +305,7 @@ int main(int argc, char *argv[])
              usleep(50000);
            outfile = open(*tmpname, O_WRONLY|O_CREAT|O_NOATIME, 00444);
            if (!outfile) {
-              fprintf(stderr, "writeloop: Cannot open for writing: %s\n", *fname);
+              fprintf(stderr, "writeloop: Cannot open for writing: %s.\n", *fname);
               exit(4);
            }
            if (c == 0) {
@@ -317,7 +317,7 @@ int main(int argc, char *argv[])
            while (c > 0 && sz <= size) {
               ret = write(outfile, buf, c);
               if (ret == -1) {
-                  fprintf(stderr, "writeloop: write error: %s\n", strerror(errno));
+                  fprintf(stderr, "writeloop: Write error: %s\n", strerror(errno));
                   exit(5);
               }
               if (ret < c) {

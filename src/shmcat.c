@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
   }
 
   if (memname == NULL) {
-      fprintf(stderr, "shmcat: need --shmname argument . . . bye.\n");
+      fprintf(stderr, "shmcat: Need --shmname argument . . . bye.\n");
       exit(7);
   }
   if ((fd = shm_open(memname, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) == -1){
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
   ptr = mem;
   done = 0;
   if (verbose)
-      fprintf(stderr, "shmcat: starting");
+      fprintf(stderr, "shmcat: Starting.\n");
   while (done < length-blen) {
       refreshmem(ptr, blen);
       refreshmem(ptr, blen);

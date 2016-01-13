@@ -13,6 +13,8 @@ int main() {
   int ret, highresok;
   struct timespec res, tim;
 
+  printf("----- Testing highres timer:\n");
+
   ret = clock_getres(CLOCK_REALTIME, &res);
   printf("realtime resolution: %ld s %ld ns (%d)\n", res.tv_sec, res.tv_nsec, ret); 
 

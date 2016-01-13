@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
     }
     /* args:   fname  blocksize  */
     if (argc-optind < 1) {
-       fprintf(stderr, "catloop: need at least two files fnam1 fnam2 [...]\n");
+       fprintf(stderr, "catloop: Need at least two files fnam1 fnam2 [...].\n");
        exit(3);
     }
     buf = malloc(blocksize);
@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
     }
     for (i=optind; i < argc; i++) {
        if (i>100) {
-          fprintf(stderr, "catloop: Too many filenames.");
+          fprintf(stderr, "catloop: Too many filenames.\n");
           exit(6);
        }
        fnames[i-optind] = argv[i];
@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
     fname = fnames;
     if (shared) {
         if (verbose)
-          fprintf(stderr, "catloop: reading from shared memory\n"); 
+          fprintf(stderr, "catloop: Reading from shared memory.\n"); 
         tmpname = tmpnames;
         mem = mems;
         sem = sems;
@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
                    c = blocksize;
                ret = write(1, ptr, c);
                if (ret == -1) {
-                  fprintf(stderr, "catloop: write error: %s\n", strerror(errno));
+                  fprintf(stderr, "catloop: Write error: %s.\n", strerror(errno));
                   exit(31);
                }
                if (ret < c) {
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
         }
     } else {
         if (verbose)
-           fprintf(stderr, "catloop: reading from files\n"); 
+           fprintf(stderr, "catloop: Reading from files.\n"); 
         while (1) {
            if (*fname == NULL)
               fname = fnames;
@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
              usleep(500);
            infile = open(*fname, O_RDONLY|O_NOATIME);
            if (!infile) {
-              fprintf(stderr, "catloop: Cannot open for reading: %s\n", *fname);
+              fprintf(stderr, "catloop: Cannot open for reading: %s.\n", *fname);
               exit(2);
            }
            c = read(infile, buf, blocksize);
@@ -291,7 +291,7 @@ int main(int argc, char *argv[])
            while (c > 0) {
               ret = write(1, buf, c);
               if (ret == -1) {
-                  fprintf(stderr, "catloop: write error: %s\n", strerror(errno));
+                  fprintf(stderr, "catloop: Write error: %s.\n", strerror(errno));
                   exit(3);
               }
               if (ret < c) {

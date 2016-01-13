@@ -31,7 +31,7 @@ int fd_net(char *host, char *port) {
 
     s = getaddrinfo(host, port, &hints, &result);
     if (s != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+        fprintf(stderr, "getaddrinfo: %s.\n", gai_strerror(s));
         exit(101);
     }
 
@@ -51,7 +51,7 @@ int fd_net(char *host, char *port) {
         close(sfd);
     }
     if (rp == NULL) {               /* No address succeeded */
-        fprintf(stderr, "Could not connect to %s:%s.\n", host, port);
+        fprintf(stderr, "net: Could not connect to %s:%s.\n", host, port);
         exit(102);
     }
     freeaddrinfo(result);           /* No longer needed */

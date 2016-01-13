@@ -440,7 +440,7 @@ int main(int argc, char *argv[])
     bytesperframe = bytespersample*nrchannels;
     /* check some arguments and set some parameters */
     if ((host == NULL || port == NULL) && sfd < 0) {
-       fprintf(stderr, "playhrt: Must give --host and --port or --stdin.\n");
+       fprintf(stderr, "playhrt: Must specify --host and --port or --stdin.\n");
        exit(3);
     }
     /* compute nanoseconds per loop (wrt local clock) */
@@ -501,7 +501,7 @@ int main(int argc, char *argv[])
         sfd = fd_net(host, port);
         if (innetbufsize != 0) {
             if (setsockopt(sfd, SOL_SOCKET, SO_RCVBUF, (void*)&innetbufsize, sizeof(int)) < 0) {
-                fprintf(stderr, "playhrt: cannot set buffer size for network socket to %d.\n",
+                fprintf(stderr, "playhrt: Cannot set buffer size for network socket to %d.\n",
                         innetbufsize);
                 exit(23);
             }
@@ -523,7 +523,7 @@ int main(int argc, char *argv[])
         }
     }
     if (snd_pcm_hw_params_any(pcm_handle, hwparams) < 0) {
-        fprintf(stderr, "playhrt: Can not configure this PCM device.\n");
+        fprintf(stderr, "playhrt: Cannot configure this PCM device.\n");
         exit(7);
     }
     if (snd_pcm_hw_params_set_access(pcm_handle, hwparams, access) < 0) {
@@ -562,7 +562,7 @@ int main(int argc, char *argv[])
     }
     if (snd_pcm_hw_params_set_buffer_size(pcm_handle, hwparams,
                                                       hwbufsize) < 0) {
-        fprintf(stderr, "playhrt: Error setting buffersize to %ld.\n", hwbufsize);
+        fprintf(stderr, "\nplayhrt: Error setting buffersize to %ld.\n", hwbufsize);
         exit(12);
     }
     snd_pcm_hw_params_get_buffer_size(hwparams, &hwbufsize);
@@ -633,7 +633,7 @@ int main(int argc, char *argv[])
           exit(19);
       }
       if (verbose)
-         fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec)\n",
+         fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec).\n",
                          mtime.tv_sec, mtime.tv_nsec);
       for (count=1, off=looperr; 1; count++, off+=looperr) {
           /* compute time for next wakeup */
@@ -663,7 +663,7 @@ int main(int argc, char *argv[])
               }
               clock_gettime(CLOCK_MONOTONIC, &mtime);
               if (verbose)
-                 fprintf(stderr, "playhrt: bad write at (%ld sec %ld nsec)\n",
+                 fprintf(stderr, "playhrt: Bad write at (%ld sec %ld nsec).\n",
                          mtime.tv_sec, mtime.tv_nsec);
 #ifdef ALSANC
               s = snd_pcm_writei_nc(pcm_handle, optr, wnext);
@@ -734,7 +734,7 @@ int main(int argc, char *argv[])
           exit(19);
       }
       if (verbose)
-         fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec)\n",
+         fprintf(stderr, "playhrt: Start time (%ld sec %ld nsec).\n",
                          mtime.tv_sec, mtime.tv_nsec);
       sumavg= 0;
       checktime = 0;
@@ -764,7 +764,7 @@ int main(int argc, char *argv[])
               avgav += avail;
               if (sumavg == 1) {
                   if (verbose > 1)
-                      fprintf(stderr, "playhrt: average available buffer: %ld (%ld sec %ld nsec)\n", avgav/16, mtime.tv_sec, mtime.tv_nsec);
+                      fprintf(stderr, "playhrt: Average available buffer: %ld (%ld sec %ld nsec).\n", avgav/16, mtime.tv_sec, mtime.tv_nsec);
                   if (checktime == 0.0 && count > startcount+30000) {
                        checktime = 1.0*mtime.tv_sec + mtime.tv_nsec/1000000000.0;
                        checkav = avgav/16;
@@ -818,7 +818,7 @@ int main(int argc, char *argv[])
                 nrdelays += 1;
           }
           if (verbose > 1 && nrdelays > 0 && count % 4096 == 0) {
-              fprintf(stderr, "playhrt: number of delayed loops: %ld (%ld sec %ld nsec)\n", nrdelays, mtime.tv_sec, mtime.tv_nsec);
+              fprintf(stderr, "playhrt: Number of delayed loops: %ld (%ld sec %ld nsec).\n", nrdelays, mtime.tv_sec, mtime.tv_nsec);
           }
 
           clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &mtime, NULL);
@@ -831,9 +831,9 @@ int main(int argc, char *argv[])
               badreads++;
               readmissing += (ilen-s);
               if (verbose)
-                  fprintf(stderr, "playhrt: bad read, %ld bytes missing at %ld.%ld \n", (ilen-s), mtime.tv_sec, mtime.tv_nsec);
+                  fprintf(stderr, "playhrt: Bad read, %ld bytes missing at %ld.%ld.\n", (ilen-s), mtime.tv_sec, mtime.tv_nsec);
               if (badreads==4) {
-                  fprintf(stderr, "playhrt: had 4 bad reads . . . exiting\n");
+                  fprintf(stderr, "playhrt: Had 4 bad reads . . . exiting.\n");
                   break;
               }
           }
@@ -856,7 +856,7 @@ int main(int argc, char *argv[])
                              "on future calls.\n", (int)(extrabps+morebps));
         }
         fprintf(stderr, "playhrt: Loops: %ld (%ld delayed), total bytes: %lld in %lld out. \n"
-                        "playhrt: Bad loops/frames written: %ld/%lld,  bad reads/bytes: %ld/%ld\n",
+                        "playhrt: Bad loops/frames written: %ld/%lld,  bad reads/bytes: %ld/%ld.\n",
                     count, nrdelays, icount, ocount, badloops, badframes, badreads, readmissing);
     }
     return 0;
