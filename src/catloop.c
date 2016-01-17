@@ -52,7 +52,7 @@ void usage( ) {
 "\n"
 "  --block-size=intval, -b intval\n"
 "      the size in bytes of the data chunks written to stdout.\n"
-"      Default is 1000 bytes.\n"
+"      Default is 1024 bytes.\n"
 "\n"
 "  --shared, -s\n"
 "      use named shared memory instead of files. For large amounts of shared \n"
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
        exit(0);
     }
     /* defaults */
-    blocksize = 2000;
+    blocksize = 1024;
     shared = 0;
     verbose = 0;
     size = 0;
