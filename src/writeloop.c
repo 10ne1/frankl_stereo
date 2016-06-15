@@ -68,6 +68,11 @@ void usage( ) {
 "      For large amounts of shared memory you may need to enlarge\n"
 "      '/proc/sys/kernel/shmmax' directly or via sysctl.\n"
 "\n"
+"  --force-shm, -x\n"
+"      if --shared is used writeloop may fail to start if 'semaphores' are\n"
+"      left over from former calls or other programs. With this option these\n"
+"      are overwritten.\n"
+"\n"
 "  --verbose, -v\n"
 "    print some information during startup.\n"
 "\n"
@@ -116,8 +121,8 @@ int main(int argc, char *argv[])
          *ptr;
     sem_t **sem, *sems[100], **semw, *semsw[100];
     void * buf;
-    int outfile, fd[100], inp, i, shared, verbose, blocksize, 
-        size, ret, sz, c, optc;
+    int outfile, fd[100], inp, i, shared, verbose, force, blocksize,
+        semflag, size, ret, sz, c, optc;
 
     /* read command line options */
     static struct option longoptions[] = {
@@ -125,6 +130,7 @@ int main(int argc, char *argv[])
         {"from-file", required_argument, 0, 'F' },
         {"file-size", required_argument,       0,  'f' },
         {"shared", no_argument, 0, 's' },
+        {"force-shm", no_argument, 0, 'x' },
         {"verbose", no_argument, 0, 'v' },
         {"version", no_argument, 0, 'V' },
         {"help", no_argument, 0, 'h' },
@@ -140,6 +146,7 @@ int main(int argc, char *argv[])
     size = 64000;
     shared = 0;
     verbose = 0;
+    force = 0;
     inp = 0;  /* stdin */
     while ((optc = getopt_long(argc, argv, "b:f:F:sVh",
             longoptions, &optind)) != -1) {
@@ -158,6 +165,9 @@ int main(int argc, char *argv[])
           break;
         case 's':
           shared = 1;
+          break;
+        case 'x':
+          force = 1;
           break;
         case 'v':
           verbose = 1;
@@ -185,6 +195,12 @@ int main(int argc, char *argv[])
        fprintf(stderr, "writeloop: Specify at least two filenames.\n");
        exit(5);
     }
+    if (shared) {
+       if (force) 
+          semflag = O_CREAT;
+       else
+          semflag = O_CREAT | O_EXCL;
+    }
 
     for (i=optind; i < argc; i++) {
        if (i>100) {
@@ -194,7 +210,7 @@ int main(int argc, char *argv[])
        fnames[i-optind] = argv[i];
        if (shared) {
            /* open semaphore with same name as memory */
-           if ((sems[i-optind] = sem_open(fnames[i-optind], O_CREAT | O_EXCL,
+           if ((sems[i-optind] = sem_open(fnames[i-optind], semflag,
                                                     0666, 0)) == SEM_FAILED) {
                fprintf(stderr, "writeloop: Cannot open semaphore.");
                exit(20);
@@ -225,7 +241,7 @@ int main(int argc, char *argv[])
        strncat(tmpnames[i-optind], ".TMP", 4);
        if (shared) {
            /* open semaphore with TMP name for write lock */
-           if ((semsw[i-optind] = sem_open(tmpnames[i-optind], O_CREAT | O_EXCL,
+           if ((semsw[i-optind] = sem_open(tmpnames[i-optind], semflag,
                                                     0666, 0)) == SEM_FAILED) {
                fprintf(stderr, "writeloop: Cannot open write semaphore.");
                exit(21);

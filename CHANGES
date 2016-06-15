@@ -2,6 +2,9 @@
 
 0.7 to 0.8
 
+- added option --force-shm to 'writeloop' (overwrites semaphores left
+  over from other calls).
+
 - now using 'memclean' in 'writeloop'.
 
 - using additional register/variable for refreshing of memory. Causes
