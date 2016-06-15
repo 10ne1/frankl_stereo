@@ -1,5 +1,5 @@
 /*
-playhrt.c                Copyright frankl 2013-2015
+playhrt.c                Copyright frankl 2013-2016
 
 This file is part of frankl's stereo utilities.
 See the file License.txt of the distribution and
@@ -194,6 +194,13 @@ void usage( ) {
 "      This may sometimes be useful to give other programs time to \n"
 "      fill the input buffer of playhrt. Default is no sleep.\n"
 "\n"
+"  --max-bad-reads=intval, -m intval\n"
+"      playhrt counts how often the read of a block of input data returns\n"
+"      fewer data than requested. If this count exceeds the number given\n"
+"      with this option then playhrt will stop. The default is 4 (because\n"
+"      it is normal that the first block and one or two blocks at the end\n"
+"      return fewer data).\n"
+"\n"
 "  --verbose, -v\n"
 "      print some information during startup and operation.\n"
 "      This option can be given twice for more output about timing\n"
@@ -259,7 +266,7 @@ void usage( ) {
 int main(int argc, char *argv[])
 {
     int sfd, s, moreinput, err, verbose, nrchannels, startcount, sumavg,
-        innetbufsize, dobufstats, countdelay;
+        innetbufsize, dobufstats, countdelay, maxbad;
     long blen, hlen, ilen, olen, extra, loopspersec, nrdelays, sleep,
          nsec, count, wnext, badloops, badreads, readmissing, avgav, checkav;
     long long icount, ocount, badframes;
@@ -297,6 +304,7 @@ int main(int argc, char *argv[])
         {"device", required_argument, 0, 'd' },
         {"extra-bytes-per-second", required_argument, 0, 'e' },
         {"sleep", required_argument, 0, 'D' },
+        {"max-bad-reads", required_argument, 0, 'm' },
         {"in-net-buffer-size", required_argument, 0, 'K' },
         {"extra-frames-out", required_argument, 0, 'o' },
         {"non-blocking-write", no_argument, 0, 'N' },
@@ -332,6 +340,7 @@ int main(int argc, char *argv[])
     access = SND_PCM_ACCESS_RW_INTERLEAVED;
     extrabps = 0;
     sleep = 0;
+    maxbad = 4;
     nonblock = 0;
     innetbufsize = 0;
     corr = 0;
@@ -400,6 +409,9 @@ int main(int argc, char *argv[])
           break;
         case 'D':
           sleep = atoi(optarg);
+          break;
+        case 'm':
+          maxbad = atoi(optarg);
           break;
         case 'K':
           innetbufsize = atoi(optarg);
@@ -832,8 +844,8 @@ int main(int argc, char *argv[])
               readmissing += (ilen-s);
               if (verbose)
                   fprintf(stderr, "playhrt: Bad read, %ld bytes missing at %ld.%ld.\n", (ilen-s), mtime.tv_sec, mtime.tv_nsec);
-              if (badreads==4) {
-                  fprintf(stderr, "playhrt: Had 4 bad reads . . . exiting.\n");
+              if (badreads >= maxbad) {
+                  fprintf(stderr, "playhrt: Had %d bad reads . . . exiting.\n", maxbad);
                   break;
               }
           }

@@ -2,6 +2,9 @@
 
 0.7 to 0.8
 
+- added option --max-bad-reads to 'playhrt' (program stops when given 
+  number of input blocks was too small, the value 4 was hardcoded before)
+
 - added option --force-shm to 'writeloop' (overwrites semaphores left
   over from other calls).
 
