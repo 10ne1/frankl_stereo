@@ -10,8 +10,11 @@ Optionally, they use assembler functions on ARM.
 */
 
 
-#ifdef VFPREFRESH
+#ifdef REFRESHVFP
 /* on ARM with some version of the CPU feature 'vfp' */
+inline void memcp_vfpX(void*, void*, int);
+inline void memclean_vfpX(void*, int);
+
 inline void refreshmem(char* ptr, int n)
 {
   /* we make shure below that we can access ptr-off */
@@ -33,8 +36,10 @@ inline void memclean(char* ptr, int n)
 }
 
 #else
-#ifdef ARMREFRESH
-/* on ARM with no CPU feature 'neon' or 'vfp' */
+#ifdef REFRESHARM
+/* on ARM with no CPU feature 'neon' or 'vfp', currently disabled, we use C-version instead */
+inline void memcp_regX(void*, void*, int);
+inline void memclean_reg(void*, int);
 
 inline void refreshmem(char* ptr, int n)
 {
@@ -52,7 +57,7 @@ inline void memclean(char* ptr, int n)
     for (i=0; i < off; i++) ptr[i] = 0;
   }
   n0 = ((n-off)/4)*4;
-  memclean_regX((void*)(ptr+off), n0);
+  memclean_reg((void*)(ptr+off), n0);
   for (; n0+off < n; n0++) ptr[n0+off] = 0;
 }
 
